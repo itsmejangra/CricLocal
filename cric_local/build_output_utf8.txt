@@ -1,0 +1,333 @@
+﻿Resolving dependencies...
+Downloading packages...
+  connectivity_plus 6.1.5 (7.1.1 available)
+  file 6.1.4 (7.0.1 available)
+  get_it 8.3.0 (9.2.1 available)
+  go_router 15.1.3 (17.2.3 available)
+  google_fonts 6.3.3 (8.1.0 available)
+  matcher 0.12.19 (0.12.20 available)
+  meta 1.17.0 (1.18.2 available)
+  mime 1.0.6 (2.0.0 available)
+  native_toolchain_c 0.17.6 (0.18.0 available)
+  share_plus 6.3.4 (13.1.0 available)
+  share_plus_platform_interface 3.4.0 (7.1.0 available)
+  test_api 0.7.10 (0.7.12 available)
+  vector_math 2.2.0 (2.3.0 available)
+  win32 3.1.4 (6.2.0 available)
+  xml 6.6.1 (7.0.1 available)
+Got dependencies!
+15 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Compiling lib\main.dart for the Web...                          
+flutter : Wasm dry run findings:
+At line:1 char:1
++ flutter build web --release > build_output.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Wasm dry run findings::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Found incompatibilities with WebAssembly.
+
+package:share_plus/src/share_plus_web.dart 1:1 - dart:html unsupported (0)
+package:share_plus/src/windows_version_helper.dart 2:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:ffi/src/allocation.dart 5:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:ffi/src/arena.dart 8:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:ffi/src/utf16.dart 5:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:ffi/src/utf8.dart 6:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/bstr.dart 3:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/callbacks.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/constants.dart 10:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/constants_nodoc.dart 23:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/exceptions.dart 7:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/guid.dart 18:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/inline.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/macros.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/structs.g.dart 14:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/types.dart 15:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/utils.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/variant.dart 10:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/extensions/dialogs.dart 7:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/extensions/list_to_blob.dart 7:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/extensions/set_ansi.dart 1:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/extensions/set_string.dart 7:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/extensions/set_string_array.dart 1:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/extensions/unpack_utf16.dart 8:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/advapi32.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/bluetoothapis.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/bthprops.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/comctl32.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/comdlg32.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/crypt32.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/dbghelp.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/dwmapi.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/dxva2.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/gdi32.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/iphlpapi.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/kernel32.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/magnification.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/ole32.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/oleaut32.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/powrprof.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/rometadata.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/scarddlg.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/setupapi.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/shell32.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/user32.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/uxtheme.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/version.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/winmm.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/winscard.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/winspool.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/wlanapi.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/xinput1_4.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/win32/api_ms_win_core_apiquery_l2_1_0.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to 
+Wasm. (2)
+package:win32/src/win32/api_ms_win_core_comm_l1_1_1.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. 
+(2)
+package:win32/src/win32/api_ms_win_core_comm_l1_1_2.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. 
+(2)
+package:win32/src/win32/api_ms_win_core_handle_l1_1_0.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to 
+Wasm. (2)
+package:win32/src/win32/api_ms_win_core_sysinfo_l1_2_3.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to 
+Wasm. (2)
+package:win32/src/win32/api_ms_win_core_winrt_l1_1_0.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to 
+Wasm. (2)
+package:win32/src/win32/api_ms_win_core_winrt_string_l1_1_0.g.dart 12:1 - 'dart:ffi' can't be imported when compiling 
+to Wasm. (2)
+package:win32/src/win32/api_ms_win_shcore_scaling_l1_1_1.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to 
+Wasm. (2)
+package:win32/src/win32/api_ms_win_wsl_api_l1_1_0.g.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. 
+(2)
+package:win32/src/api_ms_win_ro_typeresolution_l1_1_0.dart 12:1 - 'dart:ffi' can't be imported when compiling to Wasm. 
+(2)
+package:win32/src/combase.dart 7:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iapplicationactivationmanager.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxfactory.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxfile.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxfilesenumerator.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestapplication.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestapplicationsenumerator.dart 9:1 - 'dart:ffi' can't be imported when compiling to 
+Wasm. (2)
+package:win32/src/com/iappxmanifestospackagedependency.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. 
+(2)
+package:win32/src/com/iappxmanifestpackagedependenciesenumerator.dart 9:1 - 'dart:ffi' can't be imported when 
+compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestpackagedependency.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. 
+(2)
+package:win32/src/com/iappxmanifestpackageid.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestproperties.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestreader.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestreader2.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestreader3.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestreader4.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestreader5.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestreader6.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxmanifestreader7.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iappxpackagereader.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iaudiocaptureclient.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iaudioclient.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iaudioclock.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iaudiorenderclient.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iaudiosessioncontrol.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iaudiosessionmanager.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iaudiostreamvolume.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ibindctx.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ichannelaudiovolume.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iclassfactory.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iconnectionpoint.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iconnectionpointcontainer.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/idesktopwallpaper.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/idispatch.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ienumidlist.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ienummoniker.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ienumnetworkconnections.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ienumnetworks.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ienumresources.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ienumspellingerror.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ienumstring.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ienumvariant.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ienumwbemclassobject.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ierrorinfo.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ifiledialog.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ifiledialog2.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ifiledialogcustomize.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ifileisinuse.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ifileopendialog.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ifilesavedialog.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iinspectable.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iknownfolder.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iknownfoldermanager.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/immdevice.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/immdeviceenumerator.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/imodalwindow.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/imoniker.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/inetwork.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/inetworkconnection.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/inetworklistmanager.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/inetworklistmanagerevents.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ipersist.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ipersistfile.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ipersistmemory.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ipersiststream.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iprovideclassinfo.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/irunningobjecttable.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/isensor.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/isensorcollection.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/isensordatareport.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/isensormanager.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/isequentialstream.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishellfolder.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishellitem.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishellitem2.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishellitemarray.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishellitemfilter.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishellitemimagefactory.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishellitemresources.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishelllink.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishelllinkdatalist.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishelllinkdual.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ishellservice.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/isimpleaudiovolume.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ispeechobjecttoken.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ispeechobjecttokens.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ispellchecker.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ispellchecker2.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ispellcheckerchangedeventhandler.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. 
+(2)
+package:win32/src/com/ispellcheckerfactory.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ispellingerror.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ispeventsource.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ispnotifysource.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ispvoice.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/istream.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/isupporterrorinfo.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/itypeinfo.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iunknown.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iuri.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/ivirtualdesktopmanager.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iwbemclassobject.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iwbemconfigurerefresher.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iwbemcontext.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iwbemhiperfenum.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iwbemlocator.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iwbemobjectaccess.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iwbemrefresher.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+package:win32/src/com/iwbemservices.dart 9:1 - 'dart:ffi' can't be imported when compiling to Wasm. (2)
+
+Consider addressing these issues to enable wasm builds. See docs for more info: 
+https://docs.flutter.dev/platform-integration/web/wasm
+
+Use --no-wasm-dry-run to disable these warnings.
+Target dart2js failed: ProcessException: Process exited abnormally with exit code 1:
+lib/features/match/presentation/pages/live_viewer_page.dart:5:8:
+Error: Error when reading 'lib/features/core/services/sync_service.dart': Error reading 
+'lib/features/core/services/sync_service.dart'  (The system cannot find the path specified)
+import '../../../core/services/sync_service.dart';
+       ^
+lib/features/match/presentation/pages/live_viewer_page.dart:23:9:
+Error: Type 'SyncService' not found.
+  final SyncService _sync = getIt<SyncService>();
+Compiling lib\main.dart for the Web...                             48.6s
+        ^^^^^^^^^^^
+lib/features/match/presentation/pages/live_viewer_page.dart:25:3:
+Error: Type 'LiveMatchData' not found.
+  LiveMatchData? _data;
+  ^^^^^^^^^^^^^
+lib/features/match/presentation/pages/live_viewer_page.dart:23:9:
+Error: 'SyncService' isn't a type.
+  final SyncService _sync = getIt<SyncService>();
+        ^^^^^^^^^^^
+lib/features/match/presentation/pages/live_viewer_page.dart:23:35:
+Error: 'SyncService' isn't a type.
+  final SyncService _sync = getIt<SyncService>();
+                                  ^^^^^^^^^^^
+lib/features/match/presentation/pages/live_viewer_page.dart:25:3:
+Error: 'LiveMatchData' isn't a type.
+  LiveMatchData? _data;
+  ^^^^^^^^^^^^^
+lib/features/match/presentation/pages/live_viewer_page.dart:124:27:
+Error: Required named parameter 'teamName' must be provided.
+      striker: PlayerModel(id: 'striker', name: 'Striker'), 
+                          ^
+lib/features/match/data/models/player_model.dart:13:9:
+Info: Found this candidate, but the arguments don't match.
+  const PlayerModel({
+        ^^^^^^^^^^^
+lib/features/match/presentation/pages/live_viewer_page.dart:125:30:
+Error: Required named parameter 'teamName' must be provided.
+      nonStriker: PlayerModel(id: 'non_striker', name: 'Non-Striker'),
+                             ^
+lib/features/match/data/models/player_model.dart:13:9:
+Info: Found this candidate, but the arguments don't match.
+  const PlayerModel({
+        ^^^^^^^^^^^
+lib/features/match/presentation/pages/live_viewer_page.dart:126:26:
+Error: Required named parameter 'teamName' must be provided.
+      bowler: PlayerModel(id: 'bowler', name: 'Bowler'),
+                         ^
+lib/features/match/data/models/player_model.dart:13:9:
+Info: Found this candidate, but the arguments don't match.
+  const PlayerModel({
+        ^^^^^^^^^^^
+lib/features/match/presentation/pages/live_viewer_page.dart:169:35:
+Error: The getter 'MatchStatus' isn't defined for the type '_LiveViewerPageState'.
+ - '_LiveViewerPageState' is from 'package:cric_local/features/match/presentation/pages/live_viewer_page.dart' 
+('lib/features/match/presentation/pages/live_viewer_page.dart').
+                  if (m.status == MatchStatus.live)
+                                  ^^^^^^^^^^^
+Error: Compilation failed.
+  Command: C:\flutter\bin\cache\dart-sdk\bin\dart.exe compile js 
+--platform-binaries=C:\flutter\bin\cache\flutter_web_sdk\kernel --invoker=flutter_tool -Ddart.vm.product=true 
+-DFLUTTER_VERSION=3.41.9 -DFLUTTER_CHANNEL=stable -DFLUTTER_GIT_URL=https://github.com/flutter/flutter.git 
+-DFLUTTER_FRAMEWORK_REVISION=00b0c91f06 -DFLUTTER_ENGINE_REVISION=42d3d75a56 -DFLUTTER_DART_VERSION=3.11.5 
+-DFLUTTER_WEB_USE_SKIA=true -DFLUTTER_WEB_USE_SKWASM=false 
+-DFLUTTER_WEB_CANVASKIT_URL=https://www.gstatic.com/flutter-canvaskit/42d3d75a56efe1a2e9902f52dc8006099c45d937/ 
+--native-null-assertions --no-source-maps -O4 --minify -o 
+F:\CricHero\cric_local\.dart_tool\flutter_build\bd1061186983f9af4043ac0624997542\app.dill 
+--packages=F:\CricHero\cric_local\.dart_tool\package_config.json --cfe-only 
+F:\CricHero\cric_local\.dart_tool\flutter_build\bd1061186983f9af4043ac0624997542\main.dart
+#0      RunResult.throwException (package:flutter_tools/src/base/process.dart:153:5)
+#1      _DefaultProcessUtils.run (package:flutter_tools/src/base/process.dart:379:19)
+<asynchronous suspension>
+#2      Dart2JSTarget.build (package:flutter_tools/src/build_system/targets/web.dart:208:5)
+<asynchronous suspension>
+#3      _BuildInstance._invokeInternal (package:flutter_tools/src/build_system/build_system.dart:937:9)
+<asynchronous suspension>
+#4      Future.wait.<anonymous closure> (dart:async/future.dart:546:21)
+<asynchronous suspension>
+#5      _BuildInstance.invokeTarget (package:flutter_tools/src/build_system/build_system.dart:875:32)
+<asynchronous suspension>
+#6      Future.wait.<anonymous closure> (dart:async/future.dart:546:21)
+<asynchronous suspension>
+#7      _BuildInstance.invokeTarget (package:flutter_tools/src/build_system/build_system.dart:875:32)
+<asynchronous suspension>
+#8      FlutterBuildSystem.build (package:flutter_tools/src/build_system/build_system.dart:684:16)
+<asynchronous suspension>
+#9      WebBuilder.buildWeb (package:flutter_tools/src/web/compile.dart:107:34)
+<asynchronous suspension>
+#10     BuildWebCommand.runCommand (package:flutter_tools/src/commands/build_web.dart:300:5)
+<asynchronous suspension>
+#11     FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1590:27)
+<asynchronous suspension>
+#12     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#13     CommandRunner.runCommand (package:args/command_runner.dart:212:13)
+<asynchronous suspension>
+#14     FlutterCommandRunner.runCommand.<anonymous closure> 
+(package:flutter_tools/src/runner/flutter_command_runner.dart:496:9)
+<asynchronous suspension>
+#15     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#16     FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:431:5)
+<asynchronous suspension>
+#17     FlutterCommandRunner.run.<anonymous closure> 
+(package:flutter_tools/src/runner/flutter_command_runner.dart:307:33)
+<asynchronous suspension>
+#18     run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:104:11)
+<asynchronous suspension>
+#19     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#20     main (package:flutter_tools/executable.dart:103:3)
+<asynchronous suspension>
+
+Error: Failed to compile application for the Web.
