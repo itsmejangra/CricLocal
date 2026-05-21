@@ -15,6 +15,7 @@ import '../../data/models/innings_model.dart';
 import '../../data/models/player_model.dart';
 import '../bloc/scoring_bloc.dart';
 import '../bloc/scoring_event_state.dart';
+import '../../../streaming/presentation/pages/watch_live_page.dart';
 
 class LiveViewerPage extends StatefulWidget {
   final String? initialMatchId;
@@ -376,6 +377,31 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
           ],
           
           if (m.status == MatchStatus.live) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.play_circle_fill, size: 20),
+                label: const Text('Watch Live Stream', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => WatchLivePage(
+                        matchId: _idController.text.trim(),
+                        matchTitle: m.title,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 16),
             _buildCurrentPlayers(),
           ],

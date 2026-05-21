@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../../streaming/presentation/pages/go_live_page.dart';
 import '../../../../app/di.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/enums.dart';
@@ -63,6 +65,25 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
             title: const Text('Live Scoring'),
             leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
             actions: [
+              if (!kIsWeb)
+                IconButton(
+                  icon: const Icon(Icons.videocam, color: Colors.redAccent),
+                  tooltip: 'Go Live',
+                  onPressed: () {
+                    final title = state is ScoringActive
+                        ? '${state.match.team1Name} vs ${state.match.team2Name}'
+                        : 'Live Match';
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => GoLivePage(
+                          matchId: widget.matchId,
+                          matchTitle: title,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               IconButton(
                 icon: const Icon(Icons.share_arrival_time_outlined), 
                 tooltip: 'Share Match ID',

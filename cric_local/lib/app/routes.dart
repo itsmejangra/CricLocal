@@ -6,6 +6,8 @@ import '../features/match/presentation/pages/new_match_page.dart';
 import '../features/scoring/presentation/pages/score_input_page.dart';
 import '../features/home/presentation/pages/player_stats_page.dart';
 import '../features/match/presentation/pages/live_viewer_page.dart';
+import '../features/streaming/presentation/pages/go_live_page.dart';
+import '../features/streaming/presentation/pages/watch_live_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -27,6 +29,16 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/live/:id', builder: (context, state) {
       final matchId = state.pathParameters['id']!;
       return LiveViewerPage(initialMatchId: matchId);
+    }),
+    GoRoute(path: '/match/:id/go-live', builder: (context, state) {
+      final matchId = state.pathParameters['id']!;
+      final title = state.uri.queryParameters['title'] ?? 'Live Match';
+      return GoLivePage(matchId: matchId, matchTitle: title);
+    }),
+    GoRoute(path: '/match/:id/watch-live', builder: (context, state) {
+      final matchId = state.pathParameters['id']!;
+      final title = state.uri.queryParameters['title'] ?? 'Live Match';
+      return WatchLivePage(matchId: matchId, matchTitle: title);
     }),
   ],
 );
