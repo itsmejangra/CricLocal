@@ -99,7 +99,7 @@ class _HomePageState extends State<HomePage> {
         actions: [
           if (kIsWeb)
             IconButton(
-              icon: const Icon(Icons.android),
+              icon: const Icon(Icons.download),
               tooltip: 'Download Android App',
               onPressed: () => launchUrl(Uri.parse('/CricHero.apk')),
             ),
@@ -162,7 +162,7 @@ class _HomePageState extends State<HomePage> {
                 : _matchesToDisplay.isEmpty
                     ? _buildEmptyState()
                     : SizedBox(
-                        height: 220,
+                        height: 245,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 16),

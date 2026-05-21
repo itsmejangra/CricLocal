@@ -55,8 +55,9 @@ class _MatchDetailPageState extends State<MatchDetailPage> with SingleTickerProv
               ],
               bottom: TabBar(controller: _tabController, isScrollable: true,
                 tabAlignment: TabAlignment.start,
-                labelColor: AppTheme.primaryRed, unselectedLabelColor: AppTheme.textSecondary,
-                indicatorColor: AppTheme.primaryRed,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                indicatorColor: Colors.white,
                 tabs: [
                   const Tab(text: 'Info'),
                   Tab(text: state is MatchCompleted ? 'Result' : 'Live'),

@@ -39,6 +39,43 @@ class MatchResultPage extends StatelessWidget {
     return player;
   }
 
+  String _getMotmStatsText(PlayerModel? player, MatchCompleted state) {
+    if (player == null) return '';
+    
+    int runs = 0;
+    int balls = 0;
+    int wickets = 0;
+    int runsConceded = 0;
+    int totalBalls = 0;
+    
+    for (var sc in state.allScorecards) {
+      final bat = sc.batsmanStats.firstWhereOrNull((b) => b.playerId == player.id);
+      if (bat != null) {
+        runs += bat.runs;
+        balls += bat.ballsFaced;
+      }
+      final bowl = sc.bowlerStats.firstWhereOrNull((b) => b.playerId == player.id);
+      if (bowl != null) {
+        wickets += bowl.wickets;
+        runsConceded += bowl.runsConceded;
+        totalBalls += bowl.ballsBowled;
+      }
+    }
+    
+    List<String> parts = [];
+    if (runs > 0 || balls > 0) {
+      parts.add('$runs ($balls)');
+    }
+    if (wickets > 0 || totalBalls > 0) {
+      int completedOvers = totalBalls ~/ 6;
+      int ballsInCurrentOver = totalBalls % 6;
+      String oversStr = ballsInCurrentOver == 0 ? '$completedOvers' : '$completedOvers.$ballsInCurrentOver';
+      parts.add('$wickets/$runsConceded ($oversStr)');
+    }
+    
+    return parts.isEmpty ? 'No stats' : parts.join(' & ');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,8 +144,8 @@ class MatchResultPage extends StatelessWidget {
                               style: AppTheme.titleMedium.copyWith(fontWeight: FontWeight.bold, color: Colors.black87),
                             ),
                             Text(
-                              _calculateMotm(state)!.teamName,
-                              style: AppTheme.bodySmall.copyWith(color: Colors.black87, fontWeight: FontWeight.bold),
+                              '${_calculateMotm(state)!.teamName}  •  ${_getMotmStatsText(_calculateMotm(state), state)}',
+                              style: AppTheme.bodySmall.copyWith(color: Colors.amber.shade900, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),

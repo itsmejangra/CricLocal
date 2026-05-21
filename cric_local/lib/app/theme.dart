@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// CricHeros-inspired theme: Red primary, Teal accents, Light Gray background.
+/// CricHeros-inspired theme: Blue primary, Teal accents, Light Gray background.
 class AppTheme {
   AppTheme._();
 
   // ── Brand Colors ──────────────────────────────────────────────────────────
-  static const Color primaryRed = Color(0xFFD32F2F);
-  static const Color primaryRedDark = Color(0xFFB71C1C);
+  static const Color primaryBlue = Color(0xFF1565C0);
+  static const Color primaryBlueDark = Color(0xFF0D47A1);
+
+  // Aliases to change all Red themed elements (AppBar, Headers, main buttons) to Blue
+  static const Color primaryRed = primaryBlue;
+  static const Color primaryRedDark = primaryBlueDark;
   static const Color accentTeal = Color(0xFF00897B);
   static const Color accentTealLight = Color(0xFFE0F2F1);
 

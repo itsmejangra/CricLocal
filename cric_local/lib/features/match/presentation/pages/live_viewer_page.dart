@@ -79,7 +79,10 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
         title: const Text('Live Viewer'),
         bottom: _data == null ? null : TabBar(
           controller: _tabController,
-          tabs: const [Tab(text: 'Score'), Tab(text: 'Card'), Tab(text: 'Comms')],
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          tabs: const [Tab(text: 'Summary'), Tab(text: 'Score Card'), Tab(text: 'Comms')],
         ),
       ),
       body: _data == null ? _buildInput() : _buildContent(),
@@ -87,54 +90,56 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
   }
 
   Widget _buildInput() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.podcasts, size: 80, color: AppTheme.primaryRed),
-          const SizedBox(height: 24),
-          Text('Watch Live Score', style: AppTheme.headlineMedium),
-          const SizedBox(height: 8),
-          Text('Enter the Match ID shared by the scorer', textAlign: TextAlign.center, style: AppTheme.bodyMedium),
-          const SizedBox(height: 32),
-          TextField(
-            controller: _idController,
-            decoration: InputDecoration(
-              labelText: 'Match ID',
-              hintText: 'e.g. 550e8400-e29b...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              prefixIcon: const Icon(Icons.tag),
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _startSync,
-              style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
-              child: const Text('Join Match'),
-            ),
-          ),
-          if (_isLoading) const Padding(padding: EdgeInsets.only(top: 24), child: CircularProgressIndicator()),
-          
-          if (kIsWeb) ...[
-            const SizedBox(height: 48),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text('Want to score your own matches?', style: TextStyle(color: Colors.grey)),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => launchUrl(Uri.parse('/CricHero.apk')),
-              icon: const Icon(Icons.android, color: Colors.green),
-              label: const Text('Download Android App'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.podcasts, size: 80, color: AppTheme.primaryRed),
+            const SizedBox(height: 24),
+            Text('Watch Live Score', style: AppTheme.headlineMedium),
+            const SizedBox(height: 8),
+            Text('Enter the Match ID shared by the scorer', textAlign: TextAlign.center, style: AppTheme.bodyMedium),
+            const SizedBox(height: 32),
+            TextField(
+              controller: _idController,
+              decoration: InputDecoration(
+                labelText: 'Match ID',
+                hintText: 'e.g. 550e8400-e29b...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.tag),
               ),
             ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _startSync,
+                style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
+                child: const Text('Join Match'),
+              ),
+            ),
+            if (_isLoading) const Padding(padding: EdgeInsets.only(top: 24), child: CircularProgressIndicator()),
+            
+            if (kIsWeb) ...[
+              const SizedBox(height: 48),
+              const Divider(),
+              const SizedBox(height: 16),
+              const Text('Want to score your own matches?', style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => launchUrl(Uri.parse('/CricHero.apk')),
+                icon: const Icon(Icons.android, color: Colors.green),
+                label: const Text('Download Android App'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -258,6 +263,32 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
     
     final motm = getMotm();
 
+    String getMotmStatsText(PlayerModel? player) {
+      if (player == null) return '';
+      
+      final batStats = _data!.batsmanStats.where((b) => b.playerId == player.id);
+      int runs = batStats.fold(0, (sum, b) => sum + b.runs);
+      int balls = batStats.fold(0, (sum, b) => sum + b.ballsFaced);
+      
+      final bowlStats = _data!.bowlerStats.where((b) => b.playerId == player.id);
+      int wickets = bowlStats.fold(0, (sum, b) => sum + b.wickets);
+      int runsConceded = bowlStats.fold(0, (sum, b) => sum + b.runsConceded);
+      int totalBalls = bowlStats.fold(0, (sum, b) => sum + b.ballsBowled);
+      
+      List<String> parts = [];
+      if (runs > 0 || balls > 0) {
+        parts.add('$runs ($balls)');
+      }
+      if (wickets > 0 || totalBalls > 0) {
+        int completedOvers = totalBalls ~/ 6;
+        int ballsInCurrentOver = totalBalls % 6;
+        String oversStr = ballsInCurrentOver == 0 ? '$completedOvers' : '$completedOvers.$ballsInCurrentOver';
+        parts.add('$wickets/$runsConceded ($oversStr)');
+      }
+      
+      return parts.isEmpty ? 'No stats' : parts.join(' & ');
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -332,8 +363,8 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
                             style: AppTheme.titleMedium.copyWith(fontWeight: FontWeight.bold, color: Colors.black87),
                           ),
                           Text(
-                            motm.teamName,
-                            style: AppTheme.bodySmall.copyWith(color: Colors.black87, fontWeight: FontWeight.bold),
+                            '${motm.teamName}  •  ${getMotmStatsText(motm)}',
+                            style: AppTheme.bodySmall.copyWith(color: Colors.amber.shade900, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
