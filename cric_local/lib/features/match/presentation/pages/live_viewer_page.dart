@@ -183,9 +183,10 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
       bowlerStats: _data!.bowlerStats.where((b) => b.inningsId == _data!.innings.last.id).toList(),
       currentOverBalls: 0,
       allScorecards: _data!.innings.map((inn) => ScorecardData(
-        innings: inn, 
+        innings: inn,
         batsmanStats: _data!.batsmanStats.where((b) => b.inningsId == inn.id).toList(),
-        bowlerStats: _data!.bowlerStats.where((b) => b.inningsId == inn.id).toList()
+        bowlerStats: _data!.bowlerStats.where((b) => b.inningsId == inn.id).toList(),
+        deliveries: _data!.recentDeliveries.where((d) => d.inningsId == inn.id).toList(),
       )).toList(),
     );
 
@@ -194,7 +195,7 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
       children: [
         _buildSummaryTab(),
         ScorecardTab(state: state),
-        CommentaryTab(state: state),
+        CommentaryTab(state: state, matchId: m.id),
       ],
     );
   }
@@ -233,45 +234,44 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
     
     final requiredText = getRequiredRunsText();
 
-    PlayerModel? getMotm() {
-      if (m.status != MatchStatus.completed) return null;
-      
+    List<MapEntry<String, int>> _calculateTopPerformers() {
+      if (_data == null) return [];
       Map<String, int> points = {};
       
       for (var bat in _data!.batsmanStats) {
-        int pts = bat.runs + bat.fours + (bat.sixes * 2);
+        int pts = (bat.runs * 1) + (bat.fours * 1) + (bat.sixes * 2);
+        if (bat.runs >= 100) pts += 50;
+        else if (bat.runs >= 50) pts += 25;
         points[bat.playerId] = (points[bat.playerId] ?? 0) + pts;
       }
       for (var bowl in _data!.bowlerStats) {
-        int pts = (bowl.wickets * 20) + (bowl.maidens * 10);
+        int pts = (bowl.wickets * 25) + (bowl.maidens * 15);
+        if (bowl.wickets >= 5) pts += 50;
+        else if (bowl.wickets >= 3) pts += 25;
         points[bowl.playerId] = (points[bowl.playerId] ?? 0) + pts;
       }
       
-      if (points.isEmpty) return null;
+      if (points.isEmpty) return [];
       
-      String motmId = points.entries.reduce((a, b) => a.value > b.value ? a : b).key;
-      final player = _data!.allPlayers.firstWhereOrNull((p) => p.id == motmId);
-      if (player == null) {
-        return PlayerModel(
-          id: motmId,
-          name: 'Top Performer',
-          teamName: 'Match Star',
-          matchId: m.id,
-        );
-      }
-      return player;
+      return points.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
     }
-    
-    final motm = getMotm();
 
-    String getMotmStatsText(PlayerModel? player) {
-      if (player == null) return '';
+    final topPerformers = _calculateTopPerformers();
+    final motmEntry = topPerformers.firstOrNull;
+    final motm = motmEntry != null ? _data!.allPlayers.firstWhereOrNull((p) => p.id == motmEntry.key) : null;
+    final starPerformers = topPerformers.length > 1 
+        ? topPerformers.skip(1).take(4).toList() 
+        : <MapEntry<String, int>>[];
+
+    String getPlayerStatsText(String? playerId) {
+      if (playerId == null) return '';
       
-      final batStats = _data!.batsmanStats.where((b) => b.playerId == player.id);
+      final batStats = _data!.batsmanStats.where((b) => b.playerId == playerId);
       int runs = batStats.fold(0, (sum, b) => sum + b.runs);
       int balls = batStats.fold(0, (sum, b) => sum + b.ballsFaced);
       
-      final bowlStats = _data!.bowlerStats.where((b) => b.playerId == player.id);
+      final bowlStats = _data!.bowlerStats.where((b) => b.playerId == playerId);
       int wickets = bowlStats.fold(0, (sum, b) => sum + b.wickets);
       int runsConceded = bowlStats.fold(0, (sum, b) => sum + b.runsConceded);
       int totalBalls = bowlStats.fold(0, (sum, b) => sum + b.ballsBowled);
@@ -364,7 +364,7 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
                             style: AppTheme.titleMedium.copyWith(fontWeight: FontWeight.bold, color: Colors.black87),
                           ),
                           Text(
-                            '${motm.teamName}  •  ${getMotmStatsText(motm)}',
+                            '${motm.teamName}  •  ${getPlayerStatsText(motm.id)}',
                             style: AppTheme.bodySmall.copyWith(color: Colors.amber.shade900, fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -376,6 +376,61 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
             ),
           ],
           
+          if (starPerformers.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 20, color: AppTheme.primaryBlue.withValues(alpha: 0.7)),
+                const SizedBox(width: 8),
+                Text('Top Performers', style: AppTheme.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...starPerformers.map((entry) {
+              final p = _data!.allPlayers.firstWhereOrNull((p) => p.id == entry.key);
+              if (p == null) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                      radius: 18,
+                      child: Text(p.name.isNotEmpty ? p.name[0].toUpperCase() : '?', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(p.teamName, style: AppTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentTeal.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        getPlayerStatsText(p.id),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.accentTeal.withValues(alpha: 0.9)),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+
           if (m.status == MatchStatus.live) ...[
             const SizedBox(height: 16),
             SizedBox(
@@ -428,7 +483,9 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
   }
 
   Widget _buildRecentBalls() {
-    final balls = _data!.recentDeliveries.take(12).toList();
+    final balls = _data!.recentDeliveries.length > 12
+        ? _data!.recentDeliveries.sublist(_data!.recentDeliveries.length - 12)
+        : _data!.recentDeliveries;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -75,6 +75,14 @@ class EndInnings extends ScoringEvent {
   const EndInnings();
 }
 
+class RenamePlayer extends ScoringEvent {
+  final String playerId;
+  final String newName;
+  const RenamePlayer({required this.playerId, required this.newName});
+  @override
+  List<Object?> get props => [playerId, newName];
+}
+
 class StartSecondInnings extends ScoringEvent {
   final String strikerId;
   final String nonStrikerId;
@@ -88,7 +96,13 @@ class ScorecardData {
   final InningsModel innings;
   final List<BatsmanInningsModel> batsmanStats;
   final List<BowlerInningsModel> bowlerStats;
-  const ScorecardData({required this.innings, required this.batsmanStats, required this.bowlerStats});
+  final List<DeliveryModel> deliveries;
+  const ScorecardData({
+    required this.innings,
+    required this.batsmanStats,
+    required this.bowlerStats,
+    required this.deliveries,
+  });
 }
 
 // ── States ──────────────────────────────────────────────────────────────────

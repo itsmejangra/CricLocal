@@ -12,6 +12,7 @@ import '../../../match/data/models/models.dart';
 import '../../../match/presentation/bloc/scoring_bloc.dart';
 import '../../../match/presentation/bloc/scoring_event_state.dart';
 import '../widgets/wicket_modal.dart';
+import '../widgets/edit_players_modal.dart';
 import '../../../match/presentation/pages/innings_break_page.dart';
 import '../../../match/presentation/pages/match_result_page.dart';
 import '../../../match/presentation/widgets/scorecard_tab.dart';
@@ -28,6 +29,8 @@ class ScoreInputPage extends StatefulWidget {
 class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProviderStateMixin {
   late final ScoringBloc _bloc;
   TabController? _tabController;
+  bool _isInningsBreakShown = false;
+  bool _isMatchResultShown = false;
 
   @override
   void initState() {
@@ -49,14 +52,27 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
         if (state is ScoringActive && _tabController == null) {
           _tabController = TabController(length: 4, vsync: this);
         }
+        // When we return to ScoringActive (e.g. after starting 2nd innings), pop any overlaid pages
+        if (state is ScoringActive) {
+          if (_isInningsBreakShown) {
+            _isInningsBreakShown = false;
+            if (Navigator.canPop(context)) Navigator.pop(context);
+          }
+          if (_isMatchResultShown) {
+            _isMatchResultShown = false;
+            // Match result shouldn't auto-pop, but reset the flag
+          }
+        }
         if (state is WicketFallen) _showNewBatsmanDialog(ctx, state);
-          if (state is OverCompleted) _showNewBowlerDialog(ctx, state);
-          if (state is InningsBreak) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => BlocProvider.value(value: _bloc, child: InningsBreakPage(state: state))));
-          }
-          if (state is MatchCompleted) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => MatchResultPage(state: state)));
-          }
+        if (state is OverCompleted) _showNewBowlerDialog(ctx, state);
+        if (state is InningsBreak && !_isInningsBreakShown) {
+          _isInningsBreakShown = true;
+          Navigator.push(context, MaterialPageRoute(builder: (_) => BlocProvider.value(value: _bloc, child: InningsBreakPage(state: state))));
+        }
+        if (state is MatchCompleted && !_isMatchResultShown) {
+          _isMatchResultShown = true;
+          Navigator.push(context, MaterialPageRoute(builder: (_) => MatchResultPage(state: state)));
+        }
         if (state is ScoringError) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(state.message)));
       },
       builder: (ctx, state) {
@@ -94,6 +110,12 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
                   );
                 },
               ),
+              if (state is ScoringActive || state is MatchLoaded)
+                IconButton(
+                  icon: const Icon(Icons.edit_note),
+                  tooltip: 'Edit Player Names',
+                  onPressed: () => showEditPlayersModal(context, _bloc),
+                ),
               IconButton(icon: const Icon(Icons.undo), onPressed: () => _bloc.add(const UndoLastBall())),
             ],
             bottom: (state is ScoringActive && _tabController != null)
@@ -114,7 +136,9 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
                   )
                 : null,
           ),
-          body: _buildBody(ctx, state),
+          body: SafeArea(
+            child: _buildBody(ctx, state),
+          ),
         );
       },
     ));
@@ -129,11 +153,16 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
           _buildScoringPanel(ctx, state),
           ScorecardTab(state: state),
           InsightsTab(state: state),
-          CommentaryTab(state: state),
+          CommentaryTab(state: state, matchId: widget.matchId),
         ],
       );
     }
     if (state is ScoringLoading) return const Center(child: CircularProgressIndicator());
+    // InningsBreak / MatchCompleted states are handled via Navigator.push overlays;
+    // show a spinner underneath while those pages are visible.
+    if (state is InningsBreak || state is MatchCompleted) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return const Center(child: Text('Loading...'));
   }
 
@@ -156,8 +185,17 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
       battingTeam = match.team1Name;
       bowlingTeam = match.team2Name;
     }
-    final batters = state.allPlayers.where((p) => p.teamName == battingTeam).toList();
-    final bowlers = state.allPlayers.where((p) => p.teamName == bowlingTeam).toList();
+    final batters = state.allPlayers
+        .where((p) => p.teamName.trim().toLowerCase() == battingTeam.trim().toLowerCase())
+        .toList();
+    final seenBatters = <String>{};
+    final uniqueBatters = batters.where((p) => seenBatters.add(p.name.trim().toLowerCase())).toList();
+
+    final bowlers = state.allPlayers
+        .where((p) => p.teamName.trim().toLowerCase() == bowlingTeam.trim().toLowerCase())
+        .toList();
+    final seenBowlers = <String>{};
+    final uniqueBowlers = bowlers.where((p) => seenBowlers.add(p.name.trim().toLowerCase())).toList();
 
     return StatefulBuilder(builder: (ctx, setLocal) => SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text('Start Innings', style: AppTheme.headlineMedium),
@@ -170,7 +208,7 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
         initialValue: strikerId,
         decoration: const InputDecoration(border: OutlineInputBorder()),
         hint: const Text('Choose Striker'),
-        items: batters.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+        items: uniqueBatters.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
         onChanged: (v) => setLocal(() => strikerId = v)),
       const SizedBox(height: 16),
       Text('Select Non-Striker', style: AppTheme.titleMedium),
@@ -179,7 +217,7 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
         initialValue: nonStrikerId,
         decoration: const InputDecoration(border: OutlineInputBorder()),
         hint: const Text('Choose Non-Striker'),
-        items: batters.where((p) => p.id != strikerId).map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+        items: uniqueBatters.where((p) => p.id != strikerId).map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
         onChanged: (v) => setLocal(() => nonStrikerId = v)),
       const SizedBox(height: 16),
       Text('Select Bowler', style: AppTheme.titleMedium),
@@ -188,7 +226,7 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
         initialValue: bowlerId,
         decoration: const InputDecoration(border: OutlineInputBorder()),
         hint: const Text('Choose Bowler'),
-        items: bowlers.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+        items: uniqueBowlers.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
         onChanged: (v) => setLocal(() => bowlerId = v)),
       const SizedBox(height: 32),
       ElevatedButton(
@@ -258,7 +296,7 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: ListView(
           scrollDirection: Axis.horizontal,
-          children: state.recentBalls.map((b) => _ballChip(b)).toList().reversed.toList(),
+          children: state.recentBalls.map((b) => _ballChip(b)).toList(),
         ),
       ),
       const Divider(height: 1),
@@ -302,7 +340,7 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
               const SizedBox(width: 12),
               Expanded(child: OutlinedButton(
                 onPressed: () => _bloc.add(const SwapStrikeManually()),
-                child: const Text('SWAP STRIKE'),
+                child: const Text('CHANGE STRIKE'),
               )),
             ],
           ),
@@ -368,14 +406,12 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
   }
 
   Widget _partnershipMiniStat(ScoringActive state) {
-    final runs = state.batsmanStats.fold<int>(0, (s, b) => s + b.runs); // This is still wrong, but better than nothing for now
-    // In a real app, we track partnership in state
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(color: AppTheme.backgroundGray, borderRadius: BorderRadius.circular(12)),
       child: Column(children: [
         Text('PARTNERSHIP', style: AppTheme.bodySmall.copyWith(fontSize: 8, color: AppTheme.textSecondary)),
-        Text('${state.innings.totalRuns}', style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.bold, fontSize: 10)), // Placeholder
+        Text('${state.innings.partnershipRuns}(${state.innings.partnershipBalls})', style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.bold, fontSize: 10)),
       ]),
     );
   }
@@ -458,14 +494,48 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
 
   void _showNewBowlerDialog(BuildContext ctx, OverCompleted state) {
     final prev = state.previousState;
+    final innings = prev.innings;
     final bowlers = prev.allPlayers.where((p) => p.teamName == prev.innings.bowlingTeam && p.id != prev.bowler.id).toList();
     showDialog(context: ctx, barrierDismissible: false, builder: (_) => AlertDialog(
-      title: Text('Over ${state.overNumber} Complete (${state.overRuns} runs, ${state.overWickets} wkts)'),
+      titlePadding: EdgeInsets.zero,
+      title: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: AppTheme.primaryRed,
+          borderRadius: BorderRadius.only(topLeft: Radius.circular(28), topRight: Radius.circular(28)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '${innings.battingTeam}',
+              style: const TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${innings.scoreDisplay}  (${innings.oversDisplay} Ov)',
+              style: const TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Over ${state.overNumber} Complete  •  ${state.overRuns} runs, ${state.overWickets} wkts',
+                style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      ),
       content: SizedBox(width: 300, height: 300, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('Select next bowler:'),
+        const Text('Select next bowler:', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         Expanded(child: ListView(shrinkWrap: true, children: bowlers.map((p) => ListTile(title: Text(p.name),
           onTap: () { Navigator.pop(ctx); _bloc.add(SelectNewBowler(p.id)); })).toList())),
-      ]))));
+      ])),
+    ));
   }
 }

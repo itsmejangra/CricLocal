@@ -4,6 +4,7 @@ import '../../../../app/di.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/enums.dart';
 import '../../data/repositories/match_repository.dart';
+import '../../data/models/models.dart';
 
 class NewMatchPage extends StatefulWidget {
   const NewMatchPage({super.key});
@@ -25,6 +26,8 @@ class _NewMatchPageState extends State<NewMatchPage> {
   final List<TextEditingController> _team1Players = List.generate(11, (_) => TextEditingController());
   final List<TextEditingController> _team2Players = List.generate(11, (_) => TextEditingController());
   int _step = 0;
+  String? _selectedTeam1Id;
+  String? _selectedTeam2Id;
 
   @override
   void dispose() {
@@ -52,9 +55,45 @@ class _NewMatchPageState extends State<NewMatchPage> {
     return SingleChildScrollView(padding: const EdgeInsets.all(16), child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       _field(_titleCtrl, 'Match Title', 'e.g., Match of Complaints', Icons.title),
       const SizedBox(height: 12),
-      _field(_team1Ctrl, 'Team 1', 'e.g., KORIGAWA DHARI XI', Icons.groups, onChanged: (_) => setState(() {})),
+      _field(
+        _team1Ctrl,
+        'Team 1',
+        'e.g., KORIGAWA DHARI XI',
+        Icons.groups,
+        onChanged: (_) => setState(() {}),
+        suffix: IconButton(
+          icon: const Icon(Icons.people_outline, color: AppTheme.accentTeal),
+          onPressed: () => _selectSavedTeam(1),
+          tooltip: 'Select Team 1 from Saved Teams',
+        ),
+        validator: (v) {
+          if (v == null || v.trim().isEmpty) return 'Required';
+          if (_team2Ctrl.text.trim().toLowerCase() == v.trim().toLowerCase()) {
+            return 'Team names must be different';
+          }
+          return null;
+        },
+      ),
       const SizedBox(height: 12),
-      _field(_team2Ctrl, 'Team 2', 'e.g., Lion Cycle', Icons.groups_outlined, onChanged: (_) => setState(() {})),
+      _field(
+        _team2Ctrl,
+        'Team 2',
+        'e.g., Lion Cycle',
+        Icons.groups_outlined,
+        onChanged: (_) => setState(() {}),
+        suffix: IconButton(
+          icon: const Icon(Icons.people_outline, color: AppTheme.accentTeal),
+          onPressed: () => _selectSavedTeam(2),
+          tooltip: 'Select Team 2 from Saved Teams',
+        ),
+        validator: (v) {
+          if (v == null || v.trim().isEmpty) return 'Required';
+          if (_team1Ctrl.text.trim().toLowerCase() == v.trim().toLowerCase()) {
+            return 'Team names must be different';
+          }
+          return null;
+        },
+      ),
       const SizedBox(height: 12),
       Row(children: [
         Expanded(child: _field(_oversCtrl, 'Overs', '20', Icons.timer, num: true)),
@@ -115,11 +154,151 @@ class _NewMatchPageState extends State<NewMatchPage> {
     ]);
   }
 
-  Widget _field(TextEditingController c, String label, String hint, IconData icon, {bool num = false, bool req = true, ValueChanged<String>? onChanged}) {
-    return TextFormField(controller: c, keyboardType: num ? TextInputType.number : TextInputType.text,
-      decoration: InputDecoration(labelText: label, hintText: hint, prefixIcon: Icon(icon), border: const OutlineInputBorder(), filled: true, fillColor: Colors.white),
+  Future<void> _selectSavedTeam(int teamNumber) async {
+    final repo = getIt<MatchRepository>();
+    final savedTeams = await repo.getAllSavedTeams();
+    if (savedTeams.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No saved teams available. Add teams in "My Teams" first.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Select Saved Team',
+                style: AppTheme.titleMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: savedTeams.length,
+                  itemBuilder: (context, index) {
+                    final team = savedTeams[index];
+                    return FutureBuilder<List<SavedTeamPlayer>>(
+                      future: repo.getSavedTeamPlayers(team.id),
+                      builder: (context, snapshot) {
+                        final count = snapshot.data?.length ?? 0;
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                          title: Text(
+                            team.name,
+                            style: AppTheme.bodyLarge.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '$count players',
+                            style: AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary),
+                          ),
+                          leading: const CircleAvatar(
+                            backgroundColor: AppTheme.accentTeal,
+                            child: Icon(Icons.people, color: Colors.white),
+                          ),
+                          onTap: () {
+                            setState(() {
+                              if (teamNumber == 1) {
+                                _team1Ctrl.text = team.name;
+                                _selectedTeam1Id = team.id;
+                                if (snapshot.hasData) {
+                                  final players = snapshot.data!;
+                                  for (int i = 0; i < _team1Players.length; i++) {
+                                    if (i < players.length) {
+                                      _team1Players[i].text = players[i].name;
+                                    } else {
+                                      _team1Players[i].clear();
+                                    }
+                                  }
+                                }
+                              } else {
+                                _team2Ctrl.text = team.name;
+                                _selectedTeam2Id = team.id;
+                                if (snapshot.hasData) {
+                                  final players = snapshot.data!;
+                                  for (int i = 0; i < _team2Players.length; i++) {
+                                    if (i < players.length) {
+                                      _team2Players[i].text = players[i].name;
+                                    } else {
+                                      _team2Players[i].clear();
+                                    }
+                                  }
+                                }
+                              }
+                            });
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _field(TextEditingController c, String label, String hint, IconData icon, {
+    bool num = false,
+    bool req = true,
+    ValueChanged<String>? onChanged,
+    Widget? suffix,
+    FormFieldValidator<String>? validator,
+  }) {
+    return TextFormField(
+      controller: c,
+      keyboardType: num ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon),
+        suffixIcon: suffix,
+        border: const OutlineInputBorder(),
+        filled: true,
+        fillColor: Colors.white,
+      ),
       onChanged: onChanged,
-      validator: req ? (v) => v == null || v.isEmpty ? 'Required' : null : null);
+      validator: validator ?? (req ? (v) => v == null || v.trim().isEmpty ? 'Required' : null : null),
+    );
   }
 
   Future<void> _createMatch() async {

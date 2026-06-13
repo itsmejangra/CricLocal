@@ -18,6 +18,7 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
     on<UndoLastBall>(_onUndoLastBall);
     on<EndInnings>(_onEndInnings);
     on<SwapStrikeManually>(_onSwapStrikeManually);
+    on<RenamePlayer>(_onRenamePlayer);
   }
 
   Future<void> _onLoadMatch(LoadMatch event, Emitter<ScoringState> emit) async {
@@ -77,21 +78,55 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
       final allDeliveries = await _repo.getDeliveriesForInnings(innings.id);
       final recent = allDeliveries.length > 12 ? allDeliveries.sublist(allDeliveries.length - 12) : allDeliveries;
 
-      final striker = players.where((p) => p.id == innings.currentStrikerId).firstOrNull;
-      final nonStriker = players.where((p) => p.id == innings.currentNonStrikerId).firstOrNull;
-      final bowler = players.where((p) => p.id == innings.currentBowlerId).firstOrNull;
+      var striker = players.where((p) => p.id == innings.currentStrikerId).firstOrNull;
+      var nonStriker = players.where((p) => p.id == innings.currentNonStrikerId).firstOrNull;
+      var bowler = players.where((p) => p.id == innings.currentBowlerId).firstOrNull;
+
+      // Fallback: infer striker/non-striker from not-out batsmen in bat stats
+      if (striker == null || nonStriker == null) {
+        final notOutBatsmen = batStats.where((b) => !b.isOut).toList();
+        if (notOutBatsmen.length >= 2) {
+          striker ??= players.where((p) => p.id == notOutBatsmen[0].playerId).firstOrNull;
+          nonStriker ??= players.where((p) => p.id == notOutBatsmen[1].playerId).firstOrNull;
+        } else if (notOutBatsmen.length == 1) {
+          striker ??= players.where((p) => p.id == notOutBatsmen[0].playerId).firstOrNull;
+          nonStriker ??= striker; // edge case safety
+        }
+      }
+
+      // Fallback: infer bowler from last delivery or bowler stats
+      if (bowler == null) {
+        if (allDeliveries.isNotEmpty) {
+          final lastBowlerId = allDeliveries.last.bowlerId;
+          bowler = players.where((p) => p.id == lastBowlerId).firstOrNull;
+        }
+        if (bowler == null && bowlStats.isNotEmpty) {
+          bowler = players.where((p) => p.id == bowlStats.last.playerId).firstOrNull;
+        }
+      }
 
       if (striker == null || nonStriker == null || bowler == null) {
         emit(MatchLoaded(match: match, innings: allScorecards.map((s) => s.innings).toList(), allPlayers: players));
         return;
       }
 
+      // Update innings with recovered player IDs so next time they're found directly
+      var updatedInnings = innings;
+      if (innings.currentStrikerId != striker.id || innings.currentNonStrikerId != nonStriker.id || innings.currentBowlerId != bowler.id) {
+        updatedInnings = innings.copyWith(
+          currentStrikerId: striker.id,
+          currentNonStrikerId: nonStriker.id,
+          currentBowlerId: bowler.id,
+        );
+        await _repo.updateInnings(updatedInnings);
+      }
+
       emit(ScoringActive(
-        match: match, innings: innings, allScorecards: allScorecards,
+        match: match, innings: updatedInnings, allScorecards: allScorecards,
         striker: striker, nonStriker: nonStriker, bowler: bowler,
         recentBalls: recent, batsmanStats: batStats,
         bowlerStats: bowlStats, allPlayers: players,
-        currentOverBalls: innings.totalBallsInCurrentOver,
+        currentOverBalls: updatedInnings.totalBallsInCurrentOver,
       ));
     } catch (e) {
       emit(ScoringError('Failed to resume scoring: $e'));
@@ -213,6 +248,11 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
       // Update innings totals
       final newBallsInOver = isLegal ? innings.totalBallsInCurrentOver + 1 : innings.totalBallsInCurrentOver;
       final isOverComplete = newBallsInOver >= AppConstants.ballsPerOver;
+      
+      // Update partnership
+      final int newPartnershipRuns = event.isWicket ? 0 : innings.partnershipRuns + totalRunsOnBall;
+      final int newPartnershipBalls = event.isWicket ? 0 : (isLegal ? innings.partnershipBalls + 1 : innings.partnershipBalls);
+
       var updatedInnings = innings.copyWith(
         totalRuns: innings.totalRuns + totalRunsOnBall,
         totalWickets: event.isWicket ? innings.totalWickets + 1 : innings.totalWickets,
@@ -223,6 +263,8 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
         noBalls: event.isNoBall ? innings.noBalls + 1 : innings.noBalls,
         byes: event.isBye ? innings.byes + extraRuns : innings.byes,
         legByes: event.isLegBye ? innings.legByes + extraRuns : innings.legByes,
+        partnershipRuns: newPartnershipRuns,
+        partnershipBalls: newPartnershipBalls,
       );
 
       // Update batsman stats
@@ -492,6 +534,45 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
     }
   }
 
+  Future<void> _onRenamePlayer(RenamePlayer event, Emitter<ScoringState> emit) async {
+    try {
+      await _repo.updatePlayerName(event.playerId, event.newName);
+      final matchId = state is ScoringActive
+          ? (state as ScoringActive).match.id
+          : (state is MatchLoaded
+              ? (state as MatchLoaded).match.id
+              : (state is InningsBreak
+                  ? (state as InningsBreak).match.id
+                  : null));
+      if (matchId != null) {
+        final match = await _repo.getMatch(matchId);
+        if (match == null) return;
+        final innings = await _repo.getInningsForMatch(matchId);
+        final players = await _repo.getAllPlayersForMatch(matchId);
+
+        if (state is ScoringActive) {
+          final activeInnings = innings.where((i) => i.status == InningsStatus.inProgress).toList();
+          if (activeInnings.isNotEmpty) {
+            await _resumeScoring(emit, match, activeInnings.first, players);
+          }
+        } else if (state is InningsBreak) {
+          final completedInnings = innings.where((i) => i.status == InningsStatus.completed).toList();
+          if (completedInnings.isNotEmpty) {
+            final scorecards = await _buildAllScorecards(matchId);
+            emit(InningsBreak(
+              match: match, completedInnings: completedInnings.first,
+              allScorecards: scorecards, allPlayers: players, target: completedInnings.first.totalRuns + 1,
+            ));
+          }
+        } else if (state is MatchLoaded) {
+          emit(MatchLoaded(match: match, innings: innings, allPlayers: players));
+        }
+      }
+    } catch (e) {
+      emit(ScoringError('Failed to rename player: $e'));
+    }
+  }
+
   Future<void> _onSelectNewBowler(SelectNewBowler event, Emitter<ScoringState> emit) async {
     final currentState = state;
     if (currentState is! OverCompleted) return;
@@ -557,6 +638,14 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
         currentNonStrikerId: lastBall.nonStrikerId,
         currentBowlerId: lastBall.bowlerId,
       );
+      
+      // Recalculate partnership correctly on undo
+      final partnership = await _recalculatePartnership(updatedInnings.id);
+      updatedInnings = updatedInnings.copyWith(
+        partnershipRuns: partnership['runs'],
+        partnershipBalls: partnership['balls'],
+      );
+
       await _repo.updateInnings(updatedInnings);
 
       final batInnings = await _repo.getBatsmanInnings(updatedInnings.id, lastBall.batsmanId);
@@ -723,7 +812,13 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
     for (final innings in allInnings) {
       final bat = await _repo.getBatsmanStats(innings.id);
       final bowl = await _repo.getBowlerStats(innings.id);
-      results.add(ScorecardData(innings: innings, batsmanStats: bat, bowlerStats: bowl));
+      final deliveries = await _repo.getDeliveriesForInnings(innings.id);
+      results.add(ScorecardData(
+        innings: innings,
+        batsmanStats: bat,
+        bowlerStats: bowl,
+        deliveries: deliveries,
+      ));
     }
     return results;
   }
@@ -776,5 +871,18 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
       default:
         return 'out b $bName';
     }
+  }
+
+  Future<Map<String, int>> _recalculatePartnership(String inningsId) async {
+    final deliveries = await _repo.getDeliveriesForInnings(inningsId);
+    int runs = 0;
+    int balls = 0;
+    // Walk backwards until we hit a wicket or start of innings
+    for (final d in deliveries.reversed) {
+      if (d.isWicket) break;
+      runs += d.totalRuns;
+      if (d.isLegal) balls++;
+    }
+    return {'runs': runs, 'balls': balls};
   }
 }

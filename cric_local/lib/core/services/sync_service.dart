@@ -118,6 +118,58 @@ class SyncService {
     return null;
   }
 
+  void syncSavedTeam(SavedTeam team) {
+    _enqueue(() async {
+      try {
+        final response = await http.post(
+          Uri.parse('$baseUrl/sync-saved-team'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(team.toMap()),
+        );
+        if (response.statusCode != 200) print('Failed to sync saved team: ${response.body}');
+      } catch (e) { print('Sync saved team error: $e'); }
+    });
+  }
+
+  void syncSavedTeamPlayer(SavedTeamPlayer player) {
+    _enqueue(() async {
+      try {
+        final response = await http.post(
+          Uri.parse('$baseUrl/sync-saved-team-player'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(player.toMap()),
+        );
+        if (response.statusCode != 200) print('Failed to sync saved team player: ${response.body}');
+      } catch (e) { print('Sync saved team player error: $e'); }
+    });
+  }
+
+  void deleteSavedTeamFromCloud(String teamId) {
+    _enqueue(() async {
+      try {
+        final response = await http.post(
+          Uri.parse('$baseUrl/delete-saved-team'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'id': teamId}),
+        );
+        if (response.statusCode != 200) print('Failed to delete saved team from cloud: ${response.body}');
+      } catch (e) { print('Delete saved team from cloud error: $e'); }
+    });
+  }
+
+  Future<CloudSavedTeamsData?> downloadSavedTeams() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/saved-teams'));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return CloudSavedTeamsData.fromMap(data);
+      }
+    } catch (e) {
+      print('Download saved teams error: $e');
+    }
+    return null;
+  }
+
   Future<List<MatchModel>> getAllLiveMatches() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/matches'));
@@ -129,6 +181,20 @@ class SyncService {
       print('Get all live matches error: $e');
     }
     return [];
+  }
+}
+
+class CloudSavedTeamsData {
+  final List<SavedTeam> teams;
+  final List<SavedTeamPlayer> players;
+
+  CloudSavedTeamsData({required this.teams, required this.players});
+
+  factory CloudSavedTeamsData.fromMap(Map<String, dynamic> map) {
+    return CloudSavedTeamsData(
+      teams: (map['teams'] as List).map((t) => SavedTeam.fromMap(t)).toList(),
+      players: (map['players'] as List).map((p) => SavedTeamPlayer.fromMap(p)).toList(),
+    );
   }
 }
 
@@ -160,3 +226,4 @@ class LiveMatchData {
     );
   }
 }
+

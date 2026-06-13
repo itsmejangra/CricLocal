@@ -121,6 +121,14 @@ class MatchRepository {
     return PlayerModel.fromMap(rows.first);
   }
 
+  Future<void> updatePlayerName(String id, String name) async {
+    await _db.update('players', {'name': name}, where: 'id = ?', whereArgs: [id]);
+    final player = await getPlayer(id);
+    if (player != null) {
+      _sync.syncPlayer(player);
+    }
+  }
+
   // ── Innings CRUD ────────────────────────────────────────────────────────
 
   Future<InningsModel> createInnings({
@@ -158,6 +166,21 @@ class MatchRepository {
   Future<List<DeliveryModel>> getDeliveriesForInnings(String inningsId) async {
     final rows = await _db.query('deliveries', where: 'inningsId = ?',
       whereArgs: [inningsId], orderBy: 'overNumber ASC, ballNumber ASC');
+    return rows.map((r) => DeliveryModel.fromMap(r)).toList();
+  }
+
+  Future<List<DeliveryModel>> getAllDeliveriesForMatch(String matchId) async {
+    final innings = await getInningsForMatch(matchId);
+    if (innings.isEmpty) return [];
+    
+    final inningsIds = innings.map((i) => i.id).toList();
+    final placeholders = List.filled(inningsIds.length, '?').join(',');
+    final rows = await _db.query(
+      'deliveries',
+      where: 'inningsId IN ($placeholders)',
+      whereArgs: inningsIds,
+      orderBy: 'overNumber ASC, ballNumber ASC',
+    );
     return rows.map((r) => DeliveryModel.fromMap(r)).toList();
   }
 
@@ -257,40 +280,200 @@ class MatchRepository {
   Future<Map<String, dynamic>> getBattingStats(String playerName) async {
     final rows = await _db.rawQuery('''
       SELECT 
-        SUM(bi.runs) as totalRuns,
-        SUM(bi.ballsFaced) as ballsFaced,
-        SUM(bi.fours) as fours,
-        SUM(bi.sixes) as sixes,
+        COALESCE(SUM(bi.runs), 0) as totalRuns,
+        COALESCE(SUM(bi.ballsFaced), 0) as ballsFaced,
+        COALESCE(SUM(bi.fours), 0) as fours,
+        COALESCE(SUM(bi.sixes), 0) as sixes,
         COUNT(CASE WHEN bi.isOut = 1 THEN 1 END) as dismissals,
-        MAX(bi.runs) as highestScore,
-        COUNT(bi.id) as innings
-      FROM batsman_innings bi
-      JOIN players p ON bi.playerId = p.id
-      WHERE p.name = ?
+        COALESCE(MAX(bi.runs), 0) as highestScore,
+        COUNT(bi.id) as innings,
+        COUNT(DISTINCT p.matchId) as matchCount
+      FROM players p
+      LEFT JOIN batsman_innings bi ON bi.playerId = p.id
+      WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
     ''', [playerName]);
 
-    if (rows.isEmpty || rows.first['innings'] == 0) return {};
+    if (rows.isEmpty || rows.first['matchCount'] == 0) return {};
     return rows.first;
   }
 
   Future<Map<String, dynamic>> getBowlingStats(String playerName) async {
     final rows = await _db.rawQuery('''
       SELECT 
-        SUM(bi.runsConceded) as runsConceded,
-        SUM(bi.wickets) as wickets,
-        SUM(bi.ballsBowled) as ballsBowled,
-        SUM(bi.maidens) as maidens,
-        COUNT(bi.id) as innings
-      FROM bowler_innings bi
-      JOIN players p ON bi.playerId = p.id
-      WHERE p.name = ?
+        COALESCE(SUM(bi.runsConceded), 0) as runsConceded,
+        COALESCE(SUM(bi.wickets), 0) as wickets,
+        COALESCE(SUM(bi.ballsBowled), 0) as ballsBowled,
+        COALESCE(SUM(bi.maidens), 0) as maidens,
+        COUNT(bi.id) as innings,
+        COUNT(DISTINCT p.matchId) as matchCount
+      FROM players p
+      LEFT JOIN bowler_innings bi ON bi.playerId = p.id
+      WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
     ''', [playerName]);
 
-    if (rows.isEmpty || rows.first['innings'] == 0) return {};
+    if (rows.isEmpty || rows.first['matchCount'] == 0) return {};
     return rows.first;
+  }
+
+  // ── Saved Teams CRUD ────────────────────────────────────────────────────
+
+  Future<SavedTeam> createSavedTeam({
+    required String name,
+    required List<String> playerNames,
+  }) async {
+    final now = DateTime.now();
+    final teamId = _uuid.v4();
+    final team = SavedTeam(
+      id: teamId,
+      name: name,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final List<SavedTeamPlayer> players = [];
+    await _db.runInTransaction((txn) async {
+      await txn.insert('saved_teams', team.toMap());
+      for (int i = 0; i < playerNames.length; i++) {
+        final player = SavedTeamPlayer(
+          id: _uuid.v4(),
+          teamId: teamId,
+          name: playerNames[i].trim(),
+          orderIndex: i + 1,
+        );
+        await txn.insert('saved_team_players', player.toMap());
+        players.add(player);
+      }
+    });
+
+    // Trigger cloud sync
+    _sync.syncSavedTeam(team);
+    for (final p in players) {
+      _sync.syncSavedTeamPlayer(p);
+    }
+
+    return team;
+  }
+
+  Future<List<SavedTeam>> getAllSavedTeams() async {
+    final rows = await _db.query('saved_teams', orderBy: 'updatedAt DESC');
+    return rows.map((r) => SavedTeam.fromMap(r)).toList();
+  }
+
+  Future<List<SavedTeamPlayer>> getSavedTeamPlayers(String teamId) async {
+    final rows = await _db.query(
+      'saved_team_players',
+      where: 'teamId = ?',
+      whereArgs: [teamId],
+      orderBy: 'orderIndex ASC',
+    );
+    return rows.map((r) => SavedTeamPlayer.fromMap(r)).toList();
+  }
+
+  Future<SavedTeam> updateSavedTeam({
+    required String teamId,
+    required String name,
+    required List<String> playerNames,
+  }) async {
+    final now = DateTime.now();
+    final rows = await _db.query('saved_teams', where: 'id = ?', whereArgs: [teamId]);
+    if (rows.isEmpty) {
+      throw Exception('Saved team not found');
+    }
+    
+    final existingTeam = SavedTeam.fromMap(rows.first);
+    final updatedTeam = existingTeam.copyWith(
+      name: name,
+      updatedAt: now,
+    );
+
+    final List<SavedTeamPlayer> newPlayers = [];
+    await _db.runInTransaction((txn) async {
+      await txn.update(
+        'saved_teams',
+        updatedTeam.toMap(),
+        where: 'id = ?',
+        whereArgs: [teamId],
+      );
+      // Delete existing players
+      await txn.delete('saved_team_players', where: 'teamId = ?', whereArgs: [teamId]);
+      // Insert updated players
+      for (int i = 0; i < playerNames.length; i++) {
+        final player = SavedTeamPlayer(
+          id: _uuid.v4(),
+          teamId: teamId,
+          name: playerNames[i].trim(),
+          orderIndex: i + 1,
+        );
+        await txn.insert('saved_team_players', player.toMap());
+        newPlayers.add(player);
+      }
+    });
+
+    // Trigger cloud sync (team + new players)
+    _sync.syncSavedTeam(updatedTeam);
+    for (final p in newPlayers) {
+      _sync.syncSavedTeamPlayer(p);
+    }
+
+    return updatedTeam;
+  }
+
+  Future<void> deleteSavedTeam(String teamId) async {
+    await _db.delete('saved_teams', where: 'id = ?', whereArgs: [teamId]);
+    _sync.deleteSavedTeamFromCloud(teamId);
+  }
+
+  /// Pull all saved teams from the cloud and upsert them into local SQLite.
+  Future<int> pullSavedTeamsFromCloud() async {
+    final cloudData = await _sync.downloadSavedTeams();
+    if (cloudData == null) return 0;
+
+    int importedCount = 0;
+
+    for (final team in cloudData.teams) {
+      // Check if this team already exists locally
+      final existing = await _db.query('saved_teams', where: 'id = ?', whereArgs: [team.id]);
+      
+      if (existing.isEmpty) {
+        // New team from cloud — insert locally
+        await _db.insert('saved_teams', team.toMap());
+        final teamPlayers = cloudData.players.where((p) => p.teamId == team.id).toList();
+        for (final p in teamPlayers) {
+          await _db.insert('saved_team_players', p.toMap());
+        }
+        importedCount++;
+      } else {
+        // Team exists locally — use Last Write Wins (LWW) by updatedAt
+        final localTeam = SavedTeam.fromMap(existing.first);
+        if (team.updatedAt.isAfter(localTeam.updatedAt)) {
+          await _db.update('saved_teams', team.toMap(), where: 'id = ?', whereArgs: [team.id]);
+          await _db.delete('saved_team_players', where: 'teamId = ?', whereArgs: [team.id]);
+          final teamPlayers = cloudData.players.where((p) => p.teamId == team.id).toList();
+          for (final p in teamPlayers) {
+            await _db.insert('saved_team_players', p.toMap());
+          }
+          importedCount++;
+        }
+      }
+    }
+
+    return importedCount;
+  }
+
+  /// Push all local saved teams to the cloud.
+  Future<void> pushAllSavedTeamsToCloud() async {
+    final teams = await getAllSavedTeams();
+    for (final team in teams) {
+      _sync.syncSavedTeam(team);
+      final players = await getSavedTeamPlayers(team.id);
+      for (final p in players) {
+        _sync.syncSavedTeamPlayer(p);
+      }
+    }
   }
 
   Future<void> clearAllData() async {
     await _db.clearAll();
   }
 }
+

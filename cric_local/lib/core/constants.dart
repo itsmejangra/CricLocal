@@ -8,7 +8,7 @@ class AppConstants {
 
   // Database
   static const String dbName = 'cric_local.db';
-  static const int dbVersion = 1;
+  static const int dbVersion = 3;
 
   // Cricket rules
   static const int ballsPerOver = 6;

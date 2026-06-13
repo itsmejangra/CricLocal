@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:intl/intl.dart';
 import '../../../../app/theme.dart';
 import '../../data/models/models.dart';
 import '../bloc/scoring_event_state.dart';
@@ -9,42 +13,342 @@ class ScorecardTab extends StatelessWidget {
   final bool isScrollable;
   const ScorecardTab({super.key, required this.state, this.isScrollable = true});
 
+  Future<void> _exportScorecardToPdf(BuildContext context, MatchModel match, List<ScorecardData> allScorecards, List<PlayerModel> players) async {
+    try {
+      final pdf = pw.Document();
+      
+      final fontNormal = await PdfGoogleFonts.interRegular();
+      final fontBold = await PdfGoogleFonts.interBold();
+      
+      final String matchTitle = match.title;
+      final String venue = match.venue ?? 'N/A';
+      final String resultSummary = match.resultSummary ?? 'In Progress';
+      final String team1 = match.team1Name;
+      final String team2 = match.team2Name;
+      final String dateStr = DateFormat('dd MMM yyyy').format(match.matchDate);
+      final String tossText = match.tossSummary;
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          header: (context) => pw.Container(
+            alignment: pw.Alignment.centerRight,
+            margin: const pw.EdgeInsets.only(bottom: 20),
+            child: pw.Text('CricLocal Official Scorecard',
+                style: pw.TextStyle(font: fontNormal, fontSize: 8, color: PdfColors.grey500)),
+          ),
+          footer: (context) => pw.Container(
+            alignment: pw.Alignment.center,
+            margin: const pw.EdgeInsets.only(top: 20),
+            child: pw.Text('Page ${context.pageNumber} of ${context.pagesCount}',
+                style: pw.TextStyle(font: fontNormal, fontSize: 9, color: PdfColors.grey500)),
+          ),
+          build: (pw.Context context) {
+            final List<pw.Widget> content = [];
+
+            // 1. Branded Crimson Title Header
+            content.add(
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('CricLocal', style: pw.TextStyle(font: fontBold, fontSize: 26, color: PdfColors.red900)),
+                      pw.Text('OFFICIAL MATCH SCORECARD',
+                          style: pw.TextStyle(font: fontNormal, fontSize: 10, color: PdfColors.grey700, letterSpacing: 1)),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(dateStr, style: pw.TextStyle(font: fontBold, fontSize: 11, color: PdfColors.grey800)),
+                      pw.Text('Venue: $venue', style: pw.TextStyle(font: fontNormal, fontSize: 9, color: PdfColors.grey600)),
+                    ],
+                  ),
+                ],
+              ),
+            );
+
+            content.add(pw.SizedBox(height: 12));
+            content.add(pw.Divider(thickness: 2, color: PdfColors.red900));
+            content.add(pw.SizedBox(height: 12));
+
+            // 2. Overview Panel
+            content.add(
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  border: pw.Border.all(color: PdfColors.grey300),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(matchTitle, style: pw.TextStyle(font: fontBold, fontSize: 14, color: PdfColors.black)),
+                    pw.SizedBox(height: 6),
+                    pw.Row(
+                      children: [
+                        pw.Text('Teams: ', style: pw.TextStyle(font: fontBold, fontSize: 10, color: PdfColors.grey700)),
+                        pw.Text('$team1 vs $team2', style: pw.TextStyle(font: fontNormal, fontSize: 10)),
+                      ],
+                    ),
+                    if (tossText.isNotEmpty) ...[
+                      pw.SizedBox(height: 4),
+                      pw.Row(
+                        children: [
+                          pw.Text('Toss: ', style: pw.TextStyle(font: fontBold, fontSize: 10, color: PdfColors.grey700)),
+                          pw.Text(tossText, style: pw.TextStyle(font: fontNormal, fontSize: 10)),
+                        ],
+                      ),
+                    ],
+                    pw.SizedBox(height: 4),
+                    pw.Row(
+                      children: [
+                        pw.Text('Result: ', style: pw.TextStyle(font: fontBold, fontSize: 10, color: PdfColors.grey700)),
+                        pw.Text(resultSummary, style: pw.TextStyle(font: fontBold, fontSize: 10, color: PdfColors.teal900)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+            content.add(pw.SizedBox(height: 20));
+
+            // 3. Innings Scorecard
+            for (final scorecard in allScorecards) {
+              final inn = scorecard.innings;
+              
+              content.add(
+                pw.Container(
+                  color: PdfColors.red900,
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('${inn.battingTeam} Innings', style: pw.TextStyle(font: fontBold, fontSize: 12, color: PdfColors.white)),
+                      pw.Text(inn.fullScoreDisplay, style: pw.TextStyle(font: fontBold, fontSize: 12, color: PdfColors.white)),
+                    ],
+                  ),
+                ),
+              );
+              
+              content.add(pw.SizedBox(height: 8));
+
+              // --- BATTING TABLE ---
+              final List<List<String>> battingTableData = [
+                ['BATTER', 'DISMISSAL', 'R', 'B', '4s', '6s', 'SR']
+              ];
+              
+              for (final bi in scorecard.batsmanStats) {
+                final player = players.where((p) => p.id == bi.playerId).firstOrNull;
+                final name = player?.displayName ?? 'Unknown';
+                final desc = bi.isOut ? (bi.dismissalDescription ?? bi.dismissalType ?? 'out') : (bi.ballsFaced > 0 ? 'batting' : 'yet to bat');
+                battingTableData.add([
+                  name,
+                  desc,
+                  '${bi.runs}',
+                  '${bi.ballsFaced}',
+                  '${bi.fours}',
+                  '${bi.sixes}',
+                  bi.strikeRateDisplay
+                ]);
+              }
+
+              content.add(
+                pw.TableHelper.fromTextArray(
+                  headers: battingTableData[0],
+                  data: battingTableData.sublist(1),
+                  border: pw.TableBorder.symmetric(inside: const pw.BorderSide(color: PdfColors.grey200, width: 0.5)),
+                  headerStyle: pw.TextStyle(font: fontBold, fontSize: 8.5, color: PdfColors.grey800),
+                  cellStyle: pw.TextStyle(font: fontNormal, fontSize: 8),
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(2.5),
+                    1: const pw.FlexColumnWidth(3.0),
+                    2: const pw.FixedColumnWidth(20),
+                    3: const pw.FixedColumnWidth(20),
+                    4: const pw.FixedColumnWidth(20),
+                    5: const pw.FixedColumnWidth(20),
+                    6: const pw.FixedColumnWidth(25),
+                  },
+                  cellAlignment: pw.Alignment.centerRight,
+                  cellAlignments: {
+                    0: pw.Alignment.centerLeft,
+                    1: pw.Alignment.centerLeft,
+                  }
+                )
+              );
+
+              content.add(pw.SizedBox(height: 6));
+              
+              // Extras & Totals
+              content.add(
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Extras: ${inn.extrasSummary}', style: pw.TextStyle(font: fontNormal, fontSize: 9, color: PdfColors.grey800)),
+                    pw.Text('Total: ${inn.scoreDisplay} (${inn.oversDisplay} Ov, RR ${inn.currentRunRateDisplay})', style: pw.TextStyle(font: fontBold, fontSize: 10, color: PdfColors.red900)),
+                  ]
+                )
+              );
+              
+              // Yet to Bat
+              final battedIds = scorecard.batsmanStats.map((b) => b.playerId).toSet();
+              final toBat = players.where((p) => p.teamName == inn.battingTeam && !battedIds.contains(p.id)).toList();
+              if (toBat.isNotEmpty) {
+                content.add(pw.SizedBox(height: 4));
+                content.add(pw.Text('Yet to bat: ${toBat.map((p) => p.displayName).join(", ")}', style: pw.TextStyle(font: fontNormal, fontSize: 8.5, color: PdfColors.grey600)));
+              }
+
+              content.add(pw.SizedBox(height: 12));
+
+              // --- BOWLING TABLE ---
+              final List<List<String>> bowlingTableData = [
+                ['BOWLER', 'O', 'M', 'R', 'W', 'Eco']
+              ];
+              
+              for (final bs in scorecard.bowlerStats) {
+                final player = players.where((p) => p.id == bs.playerId).firstOrNull;
+                final name = player?.displayName ?? 'Unknown';
+                bowlingTableData.add([
+                  name,
+                  bs.oversDisplay,
+                  '${bs.maidens}',
+                  '${bs.runsConceded}',
+                  '${bs.wickets}',
+                  bs.economyDisplay
+                ]);
+              }
+
+              content.add(
+                pw.TableHelper.fromTextArray(
+                  headers: bowlingTableData[0],
+                  data: bowlingTableData.sublist(1),
+                  border: pw.TableBorder.symmetric(inside: const pw.BorderSide(color: PdfColors.grey200, width: 0.5)),
+                  headerStyle: pw.TextStyle(font: fontBold, fontSize: 8.5, color: PdfColors.grey800),
+                  cellStyle: pw.TextStyle(font: fontNormal, fontSize: 8),
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(3.0),
+                    1: const pw.FixedColumnWidth(25),
+                    2: const pw.FixedColumnWidth(25),
+                    3: const pw.FixedColumnWidth(25),
+                    4: const pw.FixedColumnWidth(25),
+                    5: const pw.FixedColumnWidth(30),
+                  },
+                  cellAlignment: pw.Alignment.centerRight,
+                  cellAlignments: {
+                    0: pw.Alignment.centerLeft,
+                  }
+                )
+              );
+
+              content.add(pw.SizedBox(height: 24));
+            }
+
+            return content;
+          },
+        ),
+      );
+      
+      final pdfName = 'CricLocal_${matchTitle.replaceAll(RegExp(r"\s+"), "_")}_Scorecard.pdf';
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: pdfName,
+      );
+    } catch (e) {
+      print('Scorecard PDF Export error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to export PDF: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     List<ScorecardData> allScorecards = [];
     List<PlayerModel> players = [];
+    MatchModel? match;
 
     if (state is ScoringActive) {
       final s = state as ScoringActive;
       allScorecards = s.allScorecards;
       players = s.allPlayers;
+      match = s.match;
     } else if (state is InningsBreak) {
       final s = state as InningsBreak;
       allScorecards = s.allScorecards;
       players = s.allPlayers;
+      match = s.match;
     } else if (state is MatchCompleted) {
       final s = state as MatchCompleted;
       allScorecards = s.allScorecards;
       players = s.allPlayers;
+      match = s.match;
     }
 
     if (allScorecards.isEmpty) {
       return const Center(child: Text('No scorecard data available yet.'));
     }
 
-    return ListView.builder(
-      itemCount: allScorecards.length,
-      shrinkWrap: !isScrollable,
-      physics: isScrollable ? const AlwaysScrollableScrollPhysics() : const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 32),
-      itemBuilder: (context, index) {
-        final scorecard = allScorecards[index];
-        return _InningsScorecard(
-          data: scorecard,
-          players: players,
-          isExpanded: index == allScorecards.length - 1, // Expand the latest innings by default
+    final listView = ListView.builder(
+          itemCount: allScorecards.length,
+          shrinkWrap: !isScrollable,
+          physics: isScrollable ? const AlwaysScrollableScrollPhysics() : const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 32),
+          itemBuilder: (context, index) {
+            final scorecard = allScorecards[index];
+            return _InningsScorecard(
+              data: scorecard,
+              players: players,
+              isExpanded: index == allScorecards.length - 1,
+            );
+          },
         );
-      },
+
+    return Column(
+      children: [
+        // Utility header panel
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: Colors.white,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.analytics_outlined, size: 18, color: AppTheme.textSecondary),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${allScorecards.length} Innings Scorecards',
+                    style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
+              if (match != null)
+                ElevatedButton.icon(
+                  onPressed: () => _exportScorecardToPdf(context, match!, allScorecards, players),
+                  icon: const Icon(Icons.picture_as_pdf, size: 16, color: Colors.white),
+                  label: const Text('Export PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryRed,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    elevation: 2,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        if (isScrollable)
+          Expanded(child: listView)
+        else
+          listView,
+      ],
     );
   }
 }
@@ -90,6 +394,7 @@ class _InningsScorecard extends StatelessWidget {
         if (players.isNotEmpty) _buildToBatRow(),
         const SizedBox(height: 16),
         _buildBowlersTable(),
+        _buildFallOfWickets(),
         const Divider(height: 32, thickness: 8, color: AppTheme.backgroundGray),
       ],
     );
@@ -211,6 +516,41 @@ class _InningsScorecard extends StatelessWidget {
           return _BowlerRow(player: player, stat: bs);
         }),
       ],
+    );
+  }
+
+  Widget _buildFallOfWickets() {
+    final wickets = data.deliveries.where((d) => d.isWicket).toList();
+    if (wickets.isEmpty) return const SizedBox.shrink();
+
+    int runningScore = 0;
+    final entries = <String>[];
+    for (final delivery in data.deliveries) {
+      runningScore += delivery.totalRuns;
+      if (delivery.isWicket) {
+        final player = players.where((p) => p.id == delivery.dismissedPlayerId).firstOrNull;
+        final name = player?.displayName ?? 'Unknown';
+        final over = '${delivery.overNumber}.${delivery.ballNumber}';
+        entries.add('${entries.length + 1}-$runningScore $name ($over ov)');
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Fall of Wickets',
+            style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            entries.join(', '),
+            style: AppTheme.bodySmall.copyWith(color: AppTheme.textPrimary),
+          ),
+        ],
+      ),
     );
   }
 }

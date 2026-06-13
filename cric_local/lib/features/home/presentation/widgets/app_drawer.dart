@@ -77,6 +77,10 @@ class AppDrawer extends StatelessWidget {
         Navigator.pop(context);
         context.push('/player/stats/Cricket%20Fan');
       }),
+      _buildMenuItem(Icons.people_outline, 'My Teams', context, onTap: () {
+        Navigator.pop(context);
+        context.push('/teams');
+      }),
       _buildMenuItem(Icons.storefront_outlined, 'CricLocal Store', context, onTap: () => _showComingSoon(context, 'Store')),
       _buildMenuItem(Icons.leaderboard_outlined, 'Leaderboards', context, onTap: () => _showComingSoon(context, 'Leaderboards')),
       _buildMenuItem(Icons.military_tech_outlined, 'CricLocal Awards', context, onTap: () => _showComingSoon(context, 'Awards')),

@@ -13,7 +13,14 @@ class LiveTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state is ScoringLoading) return const Center(child: CircularProgressIndicator());
-    if (state is MatchLoaded) return _buildNotStarted(context, (state as MatchLoaded).match);
+    if (state is MatchLoaded) {
+      final ml = state as MatchLoaded;
+      // If the match is live with existing innings, show resume option instead of "not started"
+      if (ml.match.status == MatchStatus.live && ml.innings.isNotEmpty) {
+        return _buildResumeScoring(context, ml.match);
+      }
+      return _buildNotStarted(context, ml.match);
+    }
 
     InningsModel? innings;
     MatchModel? match;
@@ -119,7 +126,7 @@ class LiveTab extends StatelessWidget {
             child: Row(children: [
               Text('Partnership', style: AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary)),
               const SizedBox(width: 8),
-              Text(_calculatePartnership(batStats, striker, nonStriker), style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+              Text(_calculatePartnership(innings), style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.bold)),
               const Spacer(),
               TextButton(onPressed: () {}, child: Text('More', style: AppTheme.labelLarge.copyWith(color: AppTheme.accentTeal))),
             ])),
@@ -167,6 +174,30 @@ class LiveTab extends StatelessWidget {
           label: const Text('Start Match'),
           style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14)),
         ),
+      ])));
+  }
+
+  Widget _buildResumeScoring(BuildContext context, MatchModel match) {
+    return Center(child: Padding(padding: const EdgeInsets.all(32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.sports_cricket, size: 80, color: AppTheme.primaryRed),
+        const SizedBox(height: 24),
+        Text(match.title, style: AppTheme.titleLarge, textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        Text('${match.team1Name} vs ${match.team2Name}', style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary)),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(color: AppTheme.liveBadge, borderRadius: BorderRadius.circular(AppTheme.chipRadius)),
+          child: Text('LIVE', style: AppTheme.bodySmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+        ),
+        const SizedBox(height: 24),
+        SizedBox(width: double.infinity, child: ElevatedButton.icon(
+          onPressed: () => context.push('/match/${match.id}/score'),
+          icon: const Icon(Icons.sports_cricket),
+          label: const Text('Continue Scoring'),
+          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+        )),
       ])));
   }
 
@@ -251,14 +282,7 @@ class LiveTab extends StatelessWidget {
     return ((runsNeeded * 6) / ballsLeft).toStringAsFixed(2);
   }
 
-  String _calculatePartnership(List<BatsmanInningsModel> stats, PlayerModel? s, PlayerModel? ns) {
-    if (s == null || ns == null) return '0 (0)';
-    final b1 = stats.where((st) => st.playerId == s.id).firstOrNull;
-    final b2 = stats.where((st) => st.playerId == ns.id).firstOrNull;
-    // Note: This is a simplified calculation (sum of current runs).
-    // In a real app, you'd track the partnership explicitly from the last wicket.
-    final runs = (b1?.runs ?? 0) + (b2?.runs ?? 0);
-    final balls = (b1?.ballsFaced ?? 0) + (b2?.ballsFaced ?? 0);
-    return '$runs ($balls)';
+  String _calculatePartnership(InningsModel innings) {
+    return '${innings.partnershipRuns} (${innings.partnershipBalls})';
   }
 }

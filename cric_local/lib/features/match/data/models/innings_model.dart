@@ -22,6 +22,8 @@ class InningsModel extends Equatable {
   final String? currentStrikerId;
   final String? currentNonStrikerId;
   final String? currentBowlerId;
+  final int partnershipRuns;
+  final int partnershipBalls;
   final int? target;
 
   const InningsModel({
@@ -44,6 +46,8 @@ class InningsModel extends Equatable {
     this.currentStrikerId,
     this.currentNonStrikerId,
     this.currentBowlerId,
+    this.partnershipRuns = 0,
+    this.partnershipBalls = 0,
     this.target,
   });
 
@@ -68,6 +72,8 @@ class InningsModel extends Equatable {
       'currentStrikerId': currentStrikerId,
       'currentNonStrikerId': currentNonStrikerId,
       'currentBowlerId': currentBowlerId,
+      'partnershipRuns': partnershipRuns,
+      'partnershipBalls': partnershipBalls,
       'target': target,
     };
   }
@@ -96,6 +102,8 @@ class InningsModel extends Equatable {
       currentStrikerId: map['currentStrikerId'] as String?,
       currentNonStrikerId: map['currentNonStrikerId'] as String?,
       currentBowlerId: map['currentBowlerId'] as String?,
+      partnershipRuns: map['partnershipRuns'] as int? ?? 0,
+      partnershipBalls: map['partnershipBalls'] as int? ?? 0,
       target: map['target'] as int?,
     );
   }
@@ -120,6 +128,8 @@ class InningsModel extends Equatable {
     String? currentStrikerId,
     String? currentNonStrikerId,
     String? currentBowlerId,
+    int? partnershipRuns,
+    int? partnershipBalls,
     int? target,
   }) {
     return InningsModel(
@@ -142,6 +152,8 @@ class InningsModel extends Equatable {
       currentStrikerId: currentStrikerId ?? this.currentStrikerId,
       currentNonStrikerId: currentNonStrikerId ?? this.currentNonStrikerId,
       currentBowlerId: currentBowlerId ?? this.currentBowlerId,
+      partnershipRuns: partnershipRuns ?? this.partnershipRuns,
+      partnershipBalls: partnershipBalls ?? this.partnershipBalls,
       target: target ?? this.target,
     );
   }
@@ -187,5 +199,5 @@ class InningsModel extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, matchId, inningsNumber, totalRuns, totalWickets];
+  List<Object?> get props => [id, matchId, inningsNumber, totalRuns, totalWickets, partnershipRuns, partnershipBalls];
 }

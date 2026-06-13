@@ -76,7 +76,7 @@ class _MatchDetailPageState extends State<MatchDetailPage> with SingleTickerProv
                     : LiveTab(state: state, matchId: widget.matchId),
                 ScorecardTab(state: state),
                 InsightsTab(state: state),
-                CommentaryTab(state: state),
+                CommentaryTab(state: state, matchId: widget.matchId),
               ],
             ),
           );
