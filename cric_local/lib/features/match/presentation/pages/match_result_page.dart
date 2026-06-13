@@ -5,81 +5,19 @@ import '../../../../app/theme.dart';
 import '../../../match/presentation/bloc/scoring_event_state.dart';
 import '../../../../core/services/share_service.dart';
 import '../../data/models/models.dart';
+import '../utils/match_performer_utils.dart';
 
 class MatchResultPage extends StatelessWidget {
   final MatchCompleted state;
   const MatchResultPage({super.key, required this.state});
 
-  List<MapEntry<String, int>> _calculateTopPerformers(MatchCompleted state) {
-    Map<String, int> points = {};
-    
-    for (var sc in state.allScorecards) {
-      for (var bat in sc.batsmanStats) {
-        int pts = (bat.runs * 1) + (bat.fours * 1) + (bat.sixes * 2);
-        // Bonus for milestones
-        if (bat.runs >= 100) pts += 50;
-        else if (bat.runs >= 50) pts += 25;
-        points[bat.playerId] = (points[bat.playerId] ?? 0) + pts;
-      }
-      for (var bowl in sc.bowlerStats) {
-        int pts = (bowl.wickets * 25) + (bowl.maidens * 15);
-        // Bonus for wickets
-        if (bowl.wickets >= 5) pts += 50;
-        else if (bowl.wickets >= 3) pts += 25;
-        points[bowl.playerId] = (points[bowl.playerId] ?? 0) + pts;
-      }
-    }
-    
-    if (points.isEmpty) return [];
-    
-    var sortedEntries = points.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    return sortedEntries;
-  }
-
   PlayerModel? _getPlayerById(String id, MatchCompleted state) {
     return state.allPlayers.firstWhereOrNull((p) => p.id == id);
   }
 
-  String _getStatsText(String playerId, MatchCompleted state) {
-    int runs = 0;
-    int balls = 0;
-    int wickets = 0;
-    int runsConceded = 0;
-    int totalBalls = 0;
-    
-    for (var sc in state.allScorecards) {
-      final bat = sc.batsmanStats.firstWhereOrNull((b) => b.playerId == playerId);
-      if (bat != null) {
-        runs += bat.runs;
-        balls += bat.ballsFaced;
-      }
-      final bowl = sc.bowlerStats.firstWhereOrNull((b) => b.playerId == playerId);
-      if (bowl != null) {
-        wickets += bowl.wickets;
-        runsConceded += bowl.runsConceded;
-        totalBalls += bowl.ballsBowled;
-      }
-    }
-    
-    List<String> parts = [];
-    if (runs > 0 || balls > 0) {
-      parts.add('$runs($balls)');
-    }
-    if (wickets > 0 || totalBalls > 0) {
-      int completedOvers = totalBalls ~/ 6;
-      int ballsInCurrentOver = totalBalls % 6;
-      String oversStr = ballsInCurrentOver == 0 ? '$completedOvers' : '$completedOvers.$ballsInCurrentOver';
-      parts.add('$wickets/$runsConceded ($oversStr ov)');
-    }
-    
-    return parts.isEmpty ? 'Played' : parts.join(' & ');
-  }
-
   @override
   Widget build(BuildContext context) {
-    final topPerformers = _calculateTopPerformers(state);
+    final topPerformers = MatchPerformerUtils.calculateTopPerformers(state.allScorecards);
     final potmEntry = topPerformers.isNotEmpty ? topPerformers.first : null;
     final starPerformers = topPerformers.length > 1 
         ? topPerformers.skip(1).take(4).toList() 
@@ -139,10 +77,10 @@ class MatchResultPage extends StatelessWidget {
               _buildPotmCard(potmEntry.key, state),
             ],
 
-            // Star Performers
+            // Top Performers
             if (starPerformers.isNotEmpty) ...[
               const SizedBox(height: 32),
-              _buildSectionHeader('Star Performers', Icons.auto_awesome),
+              _buildSectionHeader('Top Performers', Icons.auto_awesome),
               const SizedBox(height: 12),
               ...starPerformers.map((entry) => _buildStarPerformerItem(entry.key, state)),
             ],
@@ -265,7 +203,7 @@ class MatchResultPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    _getStatsText(playerId, state),
+                    MatchPerformerUtils.getStatsText(playerId, state.allScorecards),
                     style: AppTheme.bodyMedium.copyWith(
                       fontWeight: FontWeight.w800,
                       color: Colors.black,
@@ -333,7 +271,7 @@ class MatchResultPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              _getStatsText(playerId, state),
+              MatchPerformerUtils.getStatsText(playerId, state.allScorecards),
               style: AppTheme.bodySmall.copyWith(
                 fontWeight: FontWeight.w700,
                 color: AppTheme.accentTeal,

@@ -3,70 +3,17 @@ import 'package:collection/collection.dart';
 import '../../../../app/theme.dart';
 import '../bloc/scoring_event_state.dart';
 import '../../data/models/models.dart';
+import '../utils/match_performer_utils.dart';
 
 class MatchResultTab extends StatelessWidget {
   final ScoringState state;
   const MatchResultTab({super.key, required this.state});
 
   PlayerModel? _calculateMotm(MatchCompleted state) {
-    if (state.allPlayers.isEmpty) return null;
-    
-    Map<String, int> points = {};
-    
-    for (var sc in state.allScorecards) {
-      for (var bat in sc.batsmanStats) {
-        int pts = bat.runs + bat.fours + (bat.sixes * 2);
-        points[bat.playerId] = (points[bat.playerId] ?? 0) + pts;
-      }
-      for (var bowl in sc.bowlerStats) {
-        int pts = (bowl.wickets * 20) + (bowl.maidens * 10);
-        points[bowl.playerId] = (points[bowl.playerId] ?? 0) + pts;
-      }
-    }
-    
-    if (points.isEmpty) return null;
-    
-    String motmId = points.entries.reduce((a, b) => a.value > b.value ? a : b).key;
-    return state.allPlayers.firstWhereOrNull((p) => p.id == motmId);
+    final topPerformers = MatchPerformerUtils.calculateTopPerformers(state.allScorecards);
+    if (topPerformers.isEmpty) return null;
+    return state.allPlayers.firstWhereOrNull((p) => p.id == topPerformers.first.key);
   }
-
-  String _getMotmStatsText(PlayerModel? player, MatchCompleted state) {
-    if (player == null) return '';
-    
-    int runs = 0;
-    int balls = 0;
-    int wickets = 0;
-    int runsConceded = 0;
-    int totalBalls = 0;
-    
-    for (var sc in state.allScorecards) {
-      final bat = sc.batsmanStats.firstWhereOrNull((b) => b.playerId == player.id);
-      if (bat != null) {
-        runs += bat.runs;
-        balls += bat.ballsFaced;
-      }
-      final bowl = sc.bowlerStats.firstWhereOrNull((b) => b.playerId == player.id);
-      if (bowl != null) {
-        wickets += bowl.wickets;
-        runsConceded += bowl.runsConceded;
-        totalBalls += bowl.ballsBowled;
-      }
-    }
-    
-    List<String> parts = [];
-    if (runs > 0 || balls > 0) {
-      parts.add('$runs ($balls)');
-    }
-    if (wickets > 0 || totalBalls > 0) {
-      int completedOvers = totalBalls ~/ 6;
-      int ballsInCurrentOver = totalBalls % 6;
-      String oversStr = ballsInCurrentOver == 0 ? '$completedOvers' : '$completedOvers.$ballsInCurrentOver';
-      parts.add('$wickets/$runsConceded ($oversStr)');
-    }
-    
-    return parts.isEmpty ? 'No stats' : parts.join(' & ');
-  }
-
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +22,10 @@ class MatchResultTab extends StatelessWidget {
     }
 
     final s = state as MatchCompleted;
+    final topPerformers = MatchPerformerUtils.calculateTopPerformers(s.allScorecards);
+    final otherPerformers = topPerformers.length > 1
+        ? topPerformers.skip(1).take(4).toList()
+        : <MapEntry<String, int>>[];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -100,7 +51,7 @@ class MatchResultTab extends StatelessWidget {
               ],
             ),
           ),
-          
+
           if (_calculateMotm(s) != null) ...[
             const SizedBox(height: 24),
             Text('Player of the Match', style: AppTheme.titleMedium),
@@ -129,7 +80,7 @@ class MatchResultTab extends StatelessWidget {
                           style: AppTheme.titleMedium.copyWith(fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                         Text(
-                          '${_calculateMotm(s)!.teamName}  •  ${_getMotmStatsText(_calculateMotm(s), s)}',
+                          '${_calculateMotm(s)!.teamName}  •  ${MatchPerformerUtils.getStatsText(_calculateMotm(s)!.id, s.allScorecards)}',
                           style: AppTheme.bodySmall.copyWith(color: Colors.amber.shade900, fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -139,7 +90,61 @@ class MatchResultTab extends StatelessWidget {
               ),
             ),
           ],
-          
+
+          if (otherPerformers.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 20, color: AppTheme.primaryBlue.withValues(alpha: 0.7)),
+                const SizedBox(width: 8),
+                Text('Top Performers', style: AppTheme.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...otherPerformers.map((entry) {
+              final player = s.allPlayers.firstWhereOrNull((p) => p.id == entry.key);
+              if (player == null) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                      radius: 20,
+                      child: Text(
+                        player.name.isNotEmpty ? player.name[0].toUpperCase() : '?',
+                        style: TextStyle(color: AppTheme.primaryBlue, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(player.name, style: AppTheme.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
+                          Text(player.teamName, style: AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary)),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      MatchPerformerUtils.getStatsText(player.id, s.allScorecards),
+                      style: AppTheme.bodySmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.accentTeal,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+
           const SizedBox(height: 24),
           Text('Match Summary', style: AppTheme.titleMedium),
           const SizedBox(height: 12),

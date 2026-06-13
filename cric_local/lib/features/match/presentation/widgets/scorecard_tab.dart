@@ -520,20 +520,32 @@ class _InningsScorecard extends StatelessWidget {
   }
 
   Widget _buildFallOfWickets() {
-    final wickets = data.deliveries.where((d) => d.isWicket).toList();
-    if (wickets.isEmpty) return const SizedBox.shrink();
-
-    int runningScore = 0;
+    final wicketDeliveries = data.deliveries.where((d) => d.isWicket).toList();
     final entries = <String>[];
-    for (final delivery in data.deliveries) {
-      runningScore += delivery.totalRuns;
-      if (delivery.isWicket) {
-        final player = players.where((p) => p.id == delivery.dismissedPlayerId).firstOrNull;
+
+    if (wicketDeliveries.isNotEmpty) {
+      var runningScore = 0;
+      for (final delivery in data.deliveries) {
+        runningScore += delivery.totalRuns;
+        if (delivery.isWicket) {
+          final player = players.where((p) => p.id == delivery.dismissedPlayerId).firstOrNull;
+          final name = player?.displayName ?? 'Unknown';
+          final over = '${delivery.overNumber}.${delivery.ballNumber}';
+          entries.add('${entries.length + 1}-$runningScore $name ($over ov)');
+        }
+      }
+    } else {
+      final dismissed = data.batsmanStats.where((b) => b.isOut).toList()
+        ..sort((a, b) => a.battingPosition.compareTo(b.battingPosition));
+      for (final batsman in dismissed) {
+        final player = players.where((p) => p.id == batsman.playerId).firstOrNull;
         final name = player?.displayName ?? 'Unknown';
-        final over = '${delivery.overNumber}.${delivery.ballNumber}';
-        entries.add('${entries.length + 1}-$runningScore $name ($over ov)');
+        final desc = batsman.dismissalDescription ?? batsman.dismissalType ?? 'out';
+        entries.add('${entries.length + 1}-$name ($desc)');
       }
     }
+
+    if (entries.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
