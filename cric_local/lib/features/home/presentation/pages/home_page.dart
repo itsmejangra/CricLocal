@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/constants.dart';
 import '../../../../features/match/data/models/models.dart';
 import '../../../../features/match/data/repositories/match_repository.dart';
 import '../../../../app/di.dart';
@@ -101,7 +102,7 @@ class _HomePageState extends State<HomePage> {
             IconButton(
               icon: const Icon(Icons.download),
               tooltip: 'Download Android App',
-              onPressed: () => launchUrl(Uri.parse('https://github.com/itsmejangra/CricLocal/raw/master/cric_local/web/CricHero.apk'), mode: LaunchMode.externalApplication),
+              onPressed: () => launchUrl(Uri.parse(AppConstants.apkDownloadUrl), mode: LaunchMode.externalApplication),
             ),
           IconButton(icon: const Icon(Icons.chat_bubble_outline), onPressed: () {}),
           Stack(children: [

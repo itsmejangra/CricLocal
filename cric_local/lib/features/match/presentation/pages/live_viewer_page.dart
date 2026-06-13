@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:collection/collection.dart';
 import '../../../../app/di.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/constants.dart';
 import 'package:cric_local/core/services/sync_service.dart';
 import 'package:cric_local/core/enums.dart';
 import '../widgets/scorecard_tab.dart';
@@ -130,7 +131,7 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
               const Text('Want to score your own matches?', style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: () => launchUrl(Uri.parse('/CricHero.apk')),
+                onPressed: () => launchUrl(Uri.parse(AppConstants.apkDownloadUrl), mode: LaunchMode.externalApplication),
                 icon: const Icon(Icons.android, color: Colors.green),
                 label: const Text('Download Android App'),
                 style: OutlinedButton.styleFrom(

@@ -17,4 +17,8 @@ class AppConstants {
   // Default match settings
   static const int defaultOvers = 20;
   static const int defaultPlayersPerSide = 11;
+
+  /// Latest Android APK hosted on GitHub (outside Pages to avoid size limits).
+  static const String apkDownloadUrl =
+      'https://github.com/itsmejangra/CricLocal/raw/master/cric_local/releases/CricHero.apk';
 }

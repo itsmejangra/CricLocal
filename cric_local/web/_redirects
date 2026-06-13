@@ -1,4 +1,4 @@
 /robots.txt /robots.txt 200
 /sitemap.xml /sitemap.xml 200
-/CricHero.apk /CricHero.apk 200
+/CricHero.apk https://github.com/itsmejangra/CricLocal/raw/master/cric_local/releases/CricHero.apk 302
 /* /index.html 200
