@@ -143,11 +143,10 @@ export default {
 				let bowlerStats = { results: [] };
 				
 				if (innings.results.length > 0) {
-					const lastInningsId = innings.results[innings.results.length - 1].id;
-					recentDeliveries = await env.DB.prepare("SELECT * FROM deliveries WHERE inningsId = ? ORDER BY timestamp DESC LIMIT 20").bind(lastInningsId).all();
+					const inningsIds = innings.results.map((inn: any) => `'${inn.id}'`).join(',');
+					recentDeliveries = await env.DB.prepare(`SELECT * FROM deliveries WHERE inningsId IN (${inningsIds}) ORDER BY timestamp DESC`).all();
 					
 					// Get all batsman and bowler stats for the match
-					const inningsIds = innings.results.map((inn: any) => `'${inn.id}'`).join(',');
 					batsmanStats = await env.DB.prepare(`SELECT * FROM batsman_innings WHERE inningsId IN (${inningsIds})`).all();
 					bowlerStats = await env.DB.prepare(`SELECT * FROM bowler_innings WHERE inningsId IN (${inningsIds})`).all();
 				}
@@ -159,6 +158,50 @@ export default {
 					allPlayers: allPlayers.results,
 					batsmanStats: batsmanStats.results,
 					bowlerStats: bowlerStats.results
+				}), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+
+			// ── SYNC SAVED TEAM ──────────────────────────────────────────────────
+			if (pathname === "/sync-saved-team" && request.method === "POST") {
+				const team = await request.json();
+				await env.DB.prepare(`
+					INSERT INTO saved_teams (id, name, createdAt, updatedAt)
+					VALUES (?, ?, ?, ?)
+					ON CONFLICT(id) DO UPDATE SET
+						name = excluded.name,
+						updatedAt = excluded.updatedAt
+				`).bind(team.id, team.name, team.createdAt, team.updatedAt).run();
+				return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+
+			// ── SYNC SAVED TEAM PLAYER ───────────────────────────────────────────
+			if (pathname === "/sync-saved-team-player" && request.method === "POST") {
+				const p = await request.json();
+				await env.DB.prepare(`
+					INSERT INTO saved_team_players (id, teamId, name, orderIndex)
+					VALUES (?, ?, ?, ?)
+					ON CONFLICT(id) DO UPDATE SET
+						name = excluded.name,
+						orderIndex = excluded.orderIndex
+				`).bind(p.id, p.teamId, p.name, p.orderIndex).run();
+				return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+
+			// ── DELETE SAVED TEAM ────────────────────────────────────────────────
+			if (pathname === "/delete-saved-team" && request.method === "POST") {
+				const body = await request.json();
+				const teamId = body.id;
+				await env.DB.prepare("DELETE FROM saved_teams WHERE id = ?").bind(teamId).run();
+				return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+
+			// ── GET ALL SAVED TEAMS ──────────────────────────────────────────────
+			if (pathname === "/saved-teams" && request.method === "GET") {
+				const teams = await env.DB.prepare("SELECT * FROM saved_teams ORDER BY updatedAt DESC").all();
+				const players = await env.DB.prepare("SELECT * FROM saved_team_players ORDER BY orderIndex ASC").all();
+				return new Response(JSON.stringify({
+					teams: teams.results,
+					players: players.results
 				}), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 			}
 

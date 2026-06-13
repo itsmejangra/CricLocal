@@ -113,3 +113,20 @@ CREATE TABLE IF NOT EXISTS bowler_innings (
   dotBalls INTEGER NOT NULL,
   FOREIGN KEY (inningsId) REFERENCES innings (id) ON DELETE CASCADE
 );
+
+-- Saved Teams table
+CREATE TABLE IF NOT EXISTS saved_teams (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL
+);
+
+-- Saved Team Players table
+CREATE TABLE IF NOT EXISTS saved_team_players (
+  id TEXT PRIMARY KEY,
+  teamId TEXT NOT NULL,
+  name TEXT NOT NULL,
+  orderIndex INTEGER NOT NULL,
+  FOREIGN KEY (teamId) REFERENCES saved_teams (id) ON DELETE CASCADE
+);
