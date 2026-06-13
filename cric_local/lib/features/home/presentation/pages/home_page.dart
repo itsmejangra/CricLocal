@@ -101,7 +101,7 @@ class _HomePageState extends State<HomePage> {
             IconButton(
               icon: const Icon(Icons.download),
               tooltip: 'Download Android App',
-              onPressed: () => launchUrl(Uri.parse('/CricHero.apk')),
+              onPressed: () => launchUrl(Uri.parse('https://github.com/itsmejangra/CricLocal/raw/master/cric_local/web/CricHero.apk'), mode: LaunchMode.externalApplication),
             ),
           IconButton(icon: const Icon(Icons.chat_bubble_outline), onPressed: () {}),
           Stack(children: [
