@@ -182,6 +182,38 @@ class SyncService {
     }
     return [];
   }
+
+  Future<Map<String, dynamic>> getPlayerBattingStats(String playerName) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/player-stats/batting/${Uri.encodeComponent(playerName)}'));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) { print('Error fetching remote batting stats: $e'); }
+    return {};
+  }
+
+  Future<Map<String, dynamic>> getPlayerBowlingStats(String playerName) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/player-stats/bowling/${Uri.encodeComponent(playerName)}'));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) { print('Error fetching remote bowling stats: $e'); }
+    return {};
+  }
+
+  Future<Map<String, dynamic>> getLeaderboards() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/leaderboards'));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error fetching leaderboards: $e');
+    }
+    return {'batters': [], 'bowlers': [], 'allRounders': []};
+  }
 }
 
 class CloudSavedTeamsData {

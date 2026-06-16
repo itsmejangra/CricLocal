@@ -78,13 +78,20 @@ export default {
 			// ── SYNC PLAYER ─────────────────────────────────────────────────────
 			if (pathname === "/sync-player" && request.method === "POST") {
 				const p = await request.json();
+				// Normalize name: remove (c), (C), (k), (K), (c&k), etc.
+				let normalizedName = p.name ? p.name.replace(/\s*\(c\)\s*$/i, '')
+												.replace(/\s*\(k\)\s*$/i, '')
+												.replace(/\s*\(c&k\)\s*$/i, '')
+												.replace(/\s*\(†\)\s*$/i, '')
+												.trim() : p.name;
+
 				await env.DB.prepare(`
 					INSERT INTO players (id, name, teamName, matchId, battingOrder, isKeeper, isCaptain)
 					VALUES (?, ?, ?, ?, ?, ?, ?)
 					ON CONFLICT(id) DO UPDATE SET
 						name = excluded.name, battingOrder = excluded.battingOrder,
 						isKeeper = excluded.isKeeper, isCaptain = excluded.isCaptain
-				`).bind(p.id, p.name, p.teamName, p.matchId, p.battingOrder ?? null, p.isKeeper ? 1 : 0, p.isCaptain ? 1 : 0).run();
+				`).bind(p.id, normalizedName, p.teamName, p.matchId, p.battingOrder ?? null, p.isKeeper ? 1 : 0, p.isCaptain ? 1 : 0).run();
 				return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 			}
 
@@ -202,6 +209,121 @@ export default {
 				return new Response(JSON.stringify({
 					teams: teams.results,
 					players: players.results
+				}), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+
+			// ── GET PLAYER BATTING STATS ────────────────────────────────────────
+			if (pathname.startsWith("/player-stats/batting/") && request.method === "GET") {
+				const name = decodeURIComponent(pathname.split("/")[3]);
+				const stats = await env.DB.prepare(`
+					SELECT 
+						COALESCE(SUM(bi.runs), 0) as totalRuns,
+						COALESCE(SUM(bi.ballsFaced), 0) as ballsFaced,
+						COALESCE(SUM(bi.fours), 0) as fours,
+						COALESCE(SUM(bi.sixes), 0) as sixes,
+						COUNT(CASE WHEN bi.isOut = 1 THEN 1 END) as dismissals,
+						COALESCE(MAX(bi.runs), 0) as highestScore,
+						COUNT(bi.id) as innings,
+						COUNT(DISTINCT p.matchId) as matchCount,
+						COUNT(CASE WHEN bi.runs >= 30 AND bi.runs < 50 THEN 1 END) as thirties,
+						COUNT(CASE WHEN bi.runs >= 50 THEN 1 END) as fifties
+					FROM players p
+					LEFT JOIN batsman_innings bi ON bi.playerId = p.id
+					WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
+				`).bind(name).first();
+				
+				if (!stats || (stats as any).matchCount === 0) {
+					return new Response(JSON.stringify({}), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+				}
+				return new Response(JSON.stringify(stats), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+
+			// ── GET PLAYER BOWLING STATS ────────────────────────────────────────
+			if (pathname.startsWith("/player-stats/bowling/") && request.method === "GET") {
+				const name = decodeURIComponent(pathname.split("/")[3]);
+				const stats = await env.DB.prepare(`
+					SELECT 
+						COALESCE(SUM(bi.runsConceded), 0) as runsConceded,
+						COALESCE(SUM(bi.wickets), 0) as wickets,
+						COALESCE(SUM(bi.ballsBowled), 0) as ballsBowled,
+						COALESCE(SUM(bi.maidens), 0) as maidens,
+						COUNT(bi.id) as innings,
+						COUNT(DISTINCT p.matchId) as matchCount
+					FROM players p
+					LEFT JOIN bowler_innings bi ON bi.playerId = p.id
+					WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
+				`).bind(name).first();
+
+				if (!stats || (stats as any).matchCount === 0) {
+					return new Response(JSON.stringify({}), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+				}
+				return new Response(JSON.stringify(stats), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+
+			// ── GET LEADERBOARDS ───────────────────────────────────────────────
+			if (pathname === "/leaderboards" && request.method === "GET") {
+				const batters = await env.DB.prepare(`
+					SELECT 
+						p.name,
+						p.teamName,
+						SUM(bi.runs) as totalRuns,
+						COUNT(bi.id) as innings,
+						SUM(bi.ballsFaced) as ballsFaced,
+						ROUND(CAST(SUM(bi.runs) AS REAL) / NULLIF(COUNT(CASE WHEN bi.isOut = 1 THEN 1 END), 0), 2) as average
+					FROM players p
+					JOIN batsman_innings bi ON bi.playerId = p.id
+					WHERE LOWER(p.name) NOT LIKE 'player %'
+					GROUP BY LOWER(TRIM(p.name))
+					ORDER BY totalRuns DESC, average DESC
+					LIMIT 5
+				`).all();
+
+				const bowlers = await env.DB.prepare(`
+					SELECT 
+						p.name,
+						p.teamName,
+						SUM(bi.wickets) as totalWickets,
+						COUNT(bi.id) as innings,
+						SUM(bi.runsConceded) as runsConceded,
+						SUM(bi.ballsBowled) as ballsBowled,
+						ROUND(CAST(SUM(bi.runsConceded) AS REAL) / NULLIF(SUM(bi.ballsBowled) / 6.0, 0), 2) as economy
+					FROM players p
+					JOIN bowler_innings bi ON bi.playerId = p.id
+					WHERE LOWER(p.name) NOT LIKE 'player %'
+					GROUP BY LOWER(TRIM(p.name))
+					ORDER BY totalWickets DESC, economy ASC
+					LIMIT 5
+				`).all();
+
+				const allRounders = await env.DB.prepare(`
+					SELECT 
+						p.name,
+						p.teamName,
+						COALESCE(bat.runs, 0) as runs,
+						COALESCE(bowl.wickets, 0) as wickets,
+						(COALESCE(bat.runs, 0) + (COALESCE(bowl.wickets, 0) * 20)) as points
+					FROM players p
+					LEFT JOIN (
+						SELECT p2.name, SUM(bi.runs) as runs 
+						FROM players p2 JOIN batsman_innings bi ON bi.playerId = p2.id 
+						GROUP BY LOWER(TRIM(p2.name))
+					) bat ON LOWER(TRIM(bat.name)) = LOWER(TRIM(p.name))
+					LEFT JOIN (
+						SELECT p3.name, SUM(bi2.wickets) as wickets 
+						FROM players p3 JOIN bowler_innings bi2 ON bi2.playerId = p3.id 
+						GROUP BY LOWER(TRIM(p3.name))
+					) bowl ON LOWER(TRIM(bowl.name)) = LOWER(TRIM(p.name))
+					WHERE LOWER(p.name) NOT LIKE 'player %'
+					GROUP BY LOWER(TRIM(p.name))
+					HAVING runs > 0 AND wickets > 0
+					ORDER BY points DESC
+					LIMIT 5
+				`).all();
+
+				return new Response(JSON.stringify({
+					batters: batters.results,
+					bowlers: bowlers.results,
+					allRounders: allRounders.results
 				}), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 			}
 

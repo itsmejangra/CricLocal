@@ -29,67 +29,7 @@ class DatabaseHelper {
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
-    await _cleanupTestData(db);
     return db;
-  }
-
-  Future<void> _cleanupTestData(Database db) async {
-    try {
-      // Fetch all matches
-      final List<Map<String, dynamic>> matches = await db.query('matches');
-      
-      final List<String> keepIds = [];
-      final List<String> deleteIds = [];
-
-      for (final match in matches) {
-        final id = match['id'] as String;
-        final title = (match['title'] ?? '') as String;
-        final team1 = (match['team1Name'] ?? '') as String;
-        final team2 = (match['team2Name'] ?? '') as String;
-        final matchDateStr = (match['matchDate'] ?? '') as String;
-
-        // Check if it's May 24 (e.g. contains "05-24")
-        final bool isMay24 = matchDateStr.contains('-05-24');
-        
-        // Check if teams/title contains both Panda and Bhaga
-        final String titleLower = title.toLowerCase();
-        final String team1Lower = team1.toLowerCase();
-        final String team2Lower = team2.toLowerCase();
-        
-        final bool hasPanda = titleLower.contains('panda') || team1Lower.contains('panda') || team2Lower.contains('panda');
-        final bool hasBhaga = titleLower.contains('bhaga') || team1Lower.contains('bhaga') || team2Lower.contains('bhaga');
-        
-        if (isMay24 && hasPanda && hasBhaga) {
-          keepIds.add(id);
-        } else {
-          deleteIds.add(id);
-        }
-      }
-
-      // If we have matches to delete, perform cascading delete inside a transaction
-      if (deleteIds.isNotEmpty) {
-        await db.transaction((txn) async {
-          for (final id in deleteIds) {
-            // Find all innings for this match
-            final List<Map<String, dynamic>> innings = await txn.query('innings', where: 'matchId = ?', whereArgs: [id]);
-            final List<String> inningsIds = innings.map((e) => e['id'] as String).toList();
-
-            for (final innId in inningsIds) {
-              await txn.delete('deliveries', where: 'inningsId = ?', whereArgs: [innId]);
-              await txn.delete('batsman_innings', where: 'inningsId = ?', whereArgs: [innId]);
-              await txn.delete('bowler_innings', where: 'inningsId = ?', whereArgs: [innId]);
-            }
-
-            await txn.delete('innings', where: 'matchId = ?', whereArgs: [id]);
-            await txn.delete('players', where: 'matchId = ?', whereArgs: [id]);
-            await txn.delete('matches', where: 'id = ?', whereArgs: [id]);
-          }
-        });
-      }
-    } catch (e) {
-      // Silent catch or simple print so it never crashes database startup
-      print('CRIC_LOCAL_CLEANUP ERROR: $e');
-    }
   }
 
   Future<void> _onCreate(Database db, int version) async {

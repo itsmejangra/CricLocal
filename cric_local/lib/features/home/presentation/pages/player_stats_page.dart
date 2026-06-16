@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../app/di.dart';
 import '../../../../app/theme.dart';
 import '../../../match/data/repositories/match_repository.dart';
+import '../../../../core/services/sync_service.dart';
 
 class PlayerStatsPage extends StatefulWidget {
   final String playerName;
@@ -38,16 +40,47 @@ class _PlayerStatsPageState extends State<PlayerStatsPage>
 
   Future<void> _loadStats() async {
     final repo = getIt<MatchRepository>();
-    final bat = await repo.getBattingStats(widget.playerName);
-    final bowl = await repo.getBowlingStats(widget.playerName);
+    final sync = getIt<SyncService>();
+
+    // Fetch local stats
+    Map<String, dynamic> localBat = await repo.getBattingStats(widget.playerName);
+    Map<String, dynamic> localBowl = await repo.getBowlingStats(widget.playerName);
+
+    // Fetch remote stats
+    Map<String, dynamic> remoteBat = await sync.getPlayerBattingStats(widget.playerName);
+    Map<String, dynamic> remoteBowl = await sync.getPlayerBowlingStats(widget.playerName);
+
     if (mounted) {
       setState(() {
-        _batStats = bat;
-        _bowlStats = bowl;
+        _batStats = _mergeStats(localBat, remoteBat);
+        _bowlStats = _mergeStats(localBowl, remoteBowl);
         _loading = false;
       });
       _animController.forward();
     }
+  }
+
+  Map<String, dynamic> _mergeStats(Map<String, dynamic> local, Map<String, dynamic> remote) {
+    if (local.isEmpty) return remote;
+    if (remote.isEmpty) return local;
+
+    // Merge logic: sum up the counts/totals, max the highests
+    final merged = Map<String, dynamic>.from(local);
+    
+    // Common keys in both maps
+    remote.forEach((key, value) {
+      if (merged.containsKey(key)) {
+        if (key == 'highestScore') {
+          merged[key] = (merged[key] as num) > (value as num) ? merged[key] : value;
+        } else if (value is num && merged[key] is num) {
+          merged[key] = (merged[key] as num) + value;
+        }
+      } else {
+        merged[key] = value;
+      }
+    });
+
+    return merged;
   }
 
   String _initials(String name) {
@@ -316,11 +349,25 @@ class _PlayerStatsPageState extends State<PlayerStatsPage>
             Expanded(child: _metricCard('4s / 6s', '${s['fours']} / ${s['sixes']}', AppTheme.fourColor)),
           ],
         ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _metricCard('30s / 50s', '${s['thirties']} / ${s['fifties']}', AppTheme.accentTeal)),
+            const Spacer(),
+          ],
+        ),
       ],
     );
   }
 
   // ── Bowling Grid ──────────────────────────────────────────────────────────
+  String _formattedOvers(int balls) {
+    if (balls == 0) return '0.0';
+    int overs = balls ~/ 6;
+    int remainingBalls = balls % 6;
+    return '$overs.$remainingBalls';
+  }
+
   Widget _buildBowlingGrid() {
     final s = _bowlStats!;
     final eco = s['ballsBowled'] > 0
@@ -370,7 +417,14 @@ class _PlayerStatsPageState extends State<PlayerStatsPage>
               ),
             ),
             const SizedBox(width: 10),
-            Expanded(child: _metricCard('Maidens', '${s['maidens']}', AppTheme.accentTeal)),
+            Expanded(child: _metricCard('Maidens', s['maidens'].toString(), AppTheme.winGreen)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _metricCard('Overs', _formattedOvers(s['ballsBowled'] ?? 0), AppTheme.accentTeal)),
+            const Spacer(),
           ],
         ),
       ],

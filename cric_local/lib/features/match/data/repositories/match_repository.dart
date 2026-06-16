@@ -94,8 +94,11 @@ class MatchRepository {
     required String name, required String teamName, required String matchId,
     int? battingOrder, bool isKeeper = false, bool isCaptain = false,
   }) async {
+    // Normalize name: remove (c), (C), (k), (K), (c&k), (†), etc.
+    final normalizedName = name.replaceFirst(RegExp(r'\s*\([ckCK†]|c&k\)\s*$|†'), '').trim();
+    
     final player = PlayerModel(
-      id: _uuid.v4(), name: name, teamName: teamName, matchId: matchId,
+      id: _uuid.v4(), name: normalizedName, teamName: teamName, matchId: matchId,
       battingOrder: battingOrder, isKeeper: isKeeper, isCaptain: isCaptain,
     );
     await _db.insert('players', player.toMap());
@@ -287,7 +290,9 @@ class MatchRepository {
         COUNT(CASE WHEN bi.isOut = 1 THEN 1 END) as dismissals,
         COALESCE(MAX(bi.runs), 0) as highestScore,
         COUNT(bi.id) as innings,
-        COUNT(DISTINCT p.matchId) as matchCount
+        COUNT(DISTINCT p.matchId) as matchCount,
+        COUNT(CASE WHEN bi.runs >= 30 AND bi.runs < 50 THEN 1 END) as thirties,
+        COUNT(CASE WHEN bi.runs >= 50 THEN 1 END) as fifties
       FROM players p
       LEFT JOIN batsman_innings bi ON bi.playerId = p.id
       WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
@@ -473,7 +478,8 @@ class MatchRepository {
   }
 
   Future<void> clearAllData() async {
-    await _db.clearAll();
+    // Disabled to prevent accidental data loss.
+    // await _db.clearAll();
   }
 }
 

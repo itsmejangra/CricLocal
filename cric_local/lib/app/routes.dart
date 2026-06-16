@@ -9,6 +9,7 @@ import '../features/match/presentation/pages/live_viewer_page.dart';
 import '../features/streaming/presentation/pages/go_live_page.dart';
 import '../features/streaming/presentation/pages/watch_live_page.dart';
 import '../features/match/presentation/pages/saved_teams_page.dart';
+import '../features/home/presentation/pages/leaderboards_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -42,5 +43,6 @@ final GoRouter appRouter = GoRouter(
       return WatchLivePage(matchId: matchId, matchTitle: title);
     }),
     GoRoute(path: '/teams', builder: (context, state) => const SavedTeamsPage()),
+    GoRoute(path: '/leaderboards', builder: (context, state) => const LeaderboardsPage()),
   ],
 );

@@ -82,12 +82,14 @@ class AppDrawer extends StatelessWidget {
         context.push('/teams');
       }),
       _buildMenuItem(Icons.storefront_outlined, 'CricLocal Store', context, onTap: () => _showComingSoon(context, 'Store')),
-      _buildMenuItem(Icons.leaderboard_outlined, 'Leaderboards', context, onTap: () => _showComingSoon(context, 'Leaderboards')),
+      _buildMenuItem(Icons.leaderboard_outlined, 'Leaderboards', context, onTap: () {
+        Navigator.pop(context);
+        context.push('/leaderboards');
+      }),
       _buildMenuItem(Icons.military_tech_outlined, 'CricLocal Awards', context, onTap: () => _showComingSoon(context, 'Awards')),
       const Divider(height: 1),
       _buildMenuItem(Icons.groups_outlined, 'Associations', context, onTap: () => _showComingSoon(context, 'Associations')),
       _buildMenuItem(Icons.shield_outlined, 'Clubs', context, onTap: () => _showComingSoon(context, 'Clubs')),
-      _buildMenuItem(Icons.delete_forever_outlined, 'Clear All Data', context, onTap: () => _showClearDataDialog(context)),
       _buildMenuItem(Icons.phone_outlined, 'Contact', context, onTap: () => _showComingSoon(context, 'Contact')),
       _buildMenuItem(Icons.share_outlined, 'Share the app', context, onTap: () => _showComingSoon(context, 'Sharing')),
       const Divider(height: 1),
@@ -125,33 +127,6 @@ return ListTile(
   onTap: onTap ?? () => Navigator.pop(context),
   dense: true,
   visualDensity: const VisualDensity(vertical: -1),
-);
-}
-
-void _showClearDataDialog(BuildContext context) {
-showDialog(
-  context: context,
-  builder: (ctx) => AlertDialog(
-    title: const Text('Clear All Data?'),
-    content: const Text('This will delete all matches, players, and stats recorded so far. This action cannot be undone.'),
-    actions: [
-      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
-      TextButton(
-        onPressed: () async {
-          Navigator.pop(ctx); // Close dialog
-          Navigator.pop(context); // Close drawer
-          await getIt<MatchRepository>().clearAllData();
-          if (context.mounted) {
-            context.go('/'); // Refresh home
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('All data cleared successfully')),
-            );
-          }
-        },
-        child: const Text('CLEAR ALL', style: TextStyle(color: AppTheme.primaryRed)),
-      ),
-    ],
-  ),
 );
 }
 

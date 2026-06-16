@@ -335,7 +335,7 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
             ),
           ),
           
-          if (motm != null) ...[
+          if (motm != null && m.status == MatchStatus.completed) ...[
             const SizedBox(height: 16),
             Card(
               elevation: 2,
@@ -377,7 +377,7 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
             ),
           ],
           
-          if (starPerformers.isNotEmpty) ...[
+          if (starPerformers.isNotEmpty && m.status == MatchStatus.completed) ...[
             const SizedBox(height: 24),
             Row(
               children: [

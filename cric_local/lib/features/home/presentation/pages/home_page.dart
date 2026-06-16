@@ -183,39 +183,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                       ),
-            const SizedBox(height: 24),
-            // Stream banner
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              height: 120,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
-                ),
-              ),
-              child: Stack(children: [
-                Positioned(left: 16, top: 16, bottom: 16, child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(width: 120, color: Colors.grey[800],
-                    child: const Icon(Icons.videocam, color: Colors.white54, size: 40)),
-                )),
-                Positioned(right: 16, top: 20, child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text('Stream your', style: AppTheme.bodyLarge.copyWith(color: Colors.white)),
-                    Text('first match', style: AppTheme.titleLarge.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                    Text('for ₹99', style: AppTheme.titleLarge.copyWith(color: Colors.white)),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: AppTheme.accentTeal, borderRadius: BorderRadius.circular(4)),
-                      child: Text('Start streaming', style: AppTheme.bodySmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                )),
-              ]),
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             // Cricketers section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
