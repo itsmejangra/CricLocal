@@ -11,8 +11,9 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final _nameController = TextEditingController(text: 'Cricket Fan');
-  final _phoneController = TextEditingController(text: '9876543210');
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  bool _isLoadingStats = false;
   
   // Simulated stats - in a real app these would come from an aggregate query
   int totalRuns = 0;
@@ -27,13 +28,57 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadStats() async {
     final repo = getIt<MatchRepository>();
-    final matches = await repo.getAllMatches();
-    // Simplified simulation
-    setState(() {
-      totalMatches = matches.length;
-      totalRuns = matches.length * 42; // Placeholder logic
-      totalWickets = matches.length * 2;
-    });
+    
+    // Load local profile details if they exist
+    final profile = await repo.getUserProfile();
+    if (profile != null && mounted) {
+      _nameController.text = profile['name'] ?? '';
+      _phoneController.text = profile['phone'] ?? '';
+    }
+
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return;
+
+    setState(() => _isLoadingStats = true);
+    try {
+      final batting = await repo.getBattingStats(name);
+      final bowling = await repo.getBowlingStats(name);
+      
+      if (mounted) {
+        setState(() {
+          totalMatches = (batting['matchCount'] ?? 0) as int;
+          totalRuns = (batting['totalRuns'] ?? 0) as int;
+          totalWickets = (bowling['wickets'] ?? 0) as int;
+          _isLoadingStats = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingStats = false);
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a display name')));
+      return;
+    }
+
+    try {
+      await getIt<MatchRepository>().saveUserProfile(name, phone);
+      await _loadStats(); // Re-fetch stats for the potentially new name
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile saved successfully! Stats updated for this identity.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
+      }
+    }
   }
 
   @override
@@ -63,9 +108,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   _buildStatusCard(),
                   const SizedBox(height: 40),
                   ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved successfully!')));
-                    },
+                    onPressed: _isLoadingStats ? null : _saveProfile,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accentTeal,
                       padding: const EdgeInsets.symmetric(vertical: 18),

@@ -478,6 +478,23 @@ class MatchRepository {
     }
   }
 
+  Future<void> saveUserProfile(String name, String phone) async {
+    await _db.insert('user_profile', {
+      'id': 1,
+      'name': name,
+      'phone': phone,
+    });
+  }
+
+  Future<Map<String, String>?> getUserProfile() async {
+    final rows = await _db.query('user_profile', where: 'id = 1');
+    if (rows.isEmpty) return null;
+    return {
+      'name': rows.first['name'] as String,
+      'phone': rows.first['phone'] as String,
+    };
+  }
+
   Future<void> clearAllData() async {
     // Disabled to prevent accidental data loss.
     // await _db.clearAll();

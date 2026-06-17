@@ -200,6 +200,15 @@ class DatabaseHelper {
       )
     ''');
 
+    // ── User Profile table ───────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE user_profile (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        name TEXT NOT NULL,
+        phone TEXT
+      )
+    ''');
+
     // ── Indexes for performance ──────────────────────────────────────────
     await db.execute('CREATE INDEX idx_players_match ON players (matchId)');
     await db.execute('CREATE INDEX idx_innings_match ON innings (matchId)');
@@ -236,6 +245,15 @@ class DatabaseHelper {
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE innings ADD COLUMN partnershipRuns INTEGER NOT NULL DEFAULT 0');
       await db.execute('ALTER TABLE innings ADD COLUMN partnershipBalls INTEGER NOT NULL DEFAULT 0');
+    }
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS user_profile (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          name TEXT NOT NULL,
+          phone TEXT
+        )
+      ''');
     }
   }
 
