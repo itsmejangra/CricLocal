@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/di.dart';
 import '../../../../app/theme.dart';
@@ -181,17 +183,19 @@ return ListTile(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _shareCircle(Icons.link, 'Copy Link', AppTheme.primaryBlue, () {
-                  // Copy to clipboard logic would go here
+                  final appUrl = 'https://criclocal.eduhubacademy.org';
+                  Clipboard.setData(ClipboardData(text: appUrl));
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied to clipboard!')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('App link copied to clipboard!')));
                 }),
                 _shareCircle(Icons.qr_code, 'QR Code', AppTheme.accentTeal, () {
                   Navigator.pop(ctx);
-                  _showComingSoon(context, 'QR Sharing');
+                  _showQRCodeDialog(context);
                 }),
                 _shareCircle(Icons.more_horiz, 'System', Colors.grey, () {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('System share triggered')));
+                  final appUrl = 'https://criclocal.eduhubacademy.org';
+                  Share.share('Check out CricLocal for live cricket scoring: $appUrl');
                 }),
               ],
             ),
@@ -217,6 +221,42 @@ return ListTile(
         const SizedBox(height: 8),
         Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
       ],
+    );
+  }
+
+  void _showQRCodeDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Scan to Share'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Image.network(
+                'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://criclocal.eduhubacademy.org',
+                width: 200,
+                height: 200,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const SizedBox(width: 200, height: 200, child: Center(child: CircularProgressIndicator()));
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('Scan this code to open CricLocal', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CLOSE')),
+        ],
+      ),
     );
   }
 
