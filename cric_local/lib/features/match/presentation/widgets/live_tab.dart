@@ -153,6 +153,18 @@ class LiveTab extends StatelessWidget {
                 icon: const Icon(Icons.sports_cricket),
                 label: const Text('Continue Scoring'),
                 style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+              )))
+        else if (state is InningsBreak)
+          Padding(padding: const EdgeInsets.all(16),
+            child: SizedBox(width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.push('/match/$matchId/score'),
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Start 2nd Innings'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryRed,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
               ))),
         const SizedBox(height: 32),
       ]),

@@ -10,6 +10,10 @@ import '../features/streaming/presentation/pages/go_live_page.dart';
 import '../features/streaming/presentation/pages/watch_live_page.dart';
 import '../features/match/presentation/pages/saved_teams_page.dart';
 import '../features/home/presentation/pages/leaderboards_page.dart';
+import '../features/home/presentation/pages/awards_page.dart';
+import '../features/home/presentation/pages/contact_page.dart';
+import '../features/home/presentation/pages/explorer_page.dart';
+import '../features/home/presentation/pages/profile_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -44,5 +48,10 @@ final GoRouter appRouter = GoRouter(
     }),
     GoRoute(path: '/teams', builder: (context, state) => const SavedTeamsPage()),
     GoRoute(path: '/leaderboards', builder: (context, state) => const LeaderboardsPage()),
+    GoRoute(path: '/awards', builder: (context, state) => const AwardsPage()),
+    GoRoute(path: '/contact', builder: (context, state) => const ContactPage()),
+    GoRoute(path: '/associations', builder: (context, state) => const ExplorerPage(title: 'Associations', type: 'Association')),
+    GoRoute(path: '/clubs', builder: (context, state) => const ExplorerPage(title: 'Clubs', type: 'Club')),
+    GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
   ],
 );

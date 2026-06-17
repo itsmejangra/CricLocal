@@ -172,10 +172,12 @@ class _HomePageState extends State<HomePage> {
                             child: MatchCard(
                               match: _matchesToDisplay[i],
                               onTap: () {
-                                if (_isLiveTab) {
-                                  context.push('/live/${_matchesToDisplay[i].id}');
-                                } else {
+                                // If match exists locally, always go to manage/score page
+                                final isLocal = _localMatches.any((m) => m.id == _matchesToDisplay[i].id);
+                                if (isLocal) {
                                   context.push('/match/${_matchesToDisplay[i].id}');
+                                } else {
+                                  context.push('/live/${_matchesToDisplay[i].id}');
                                 }
                               },
                               onDelete: _isLiveTab ? null : () => _confirmDelete(context, _matchesToDisplay[i]),
