@@ -43,7 +43,7 @@ class AwardsPage extends StatelessWidget {
                   _buildAwardSection(
                     title: 'Golden Bat Awards',
                     subtitle: 'Top Run Scorers of the Season',
-                    icon: Icons.Workspace_premium,
+                    icon: Icons.workspace_premium,
                     color: Colors.amber,
                     players: batters,
                     statLabel: 'Runs',

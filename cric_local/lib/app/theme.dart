@@ -58,6 +58,12 @@ class AppTheme {
         color: textPrimary,
       );
 
+  static TextStyle get headlineSmall => GoogleFonts.roboto(
+        fontSize: 20,
+        fontWeight: FontWeight.w500,
+        color: textPrimary,
+      );
+
   static TextStyle get titleLarge => GoogleFonts.roboto(
         fontSize: 18,
         fontWeight: FontWeight.w600,
