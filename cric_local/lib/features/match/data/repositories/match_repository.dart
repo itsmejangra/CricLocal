@@ -416,6 +416,7 @@ class MatchRepository {
 
     // Trigger cloud sync (team + new players)
     _sync.syncSavedTeam(updatedTeam);
+    _sync.clearSavedTeamPlayersFromCloud(teamId);
     for (final p in newPlayers) {
       _sync.syncSavedTeamPlayer(p);
     }

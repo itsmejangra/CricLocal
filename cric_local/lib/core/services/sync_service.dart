@@ -157,6 +157,19 @@ class SyncService {
     });
   }
 
+  void clearSavedTeamPlayersFromCloud(String teamId) {
+    _enqueue(() async {
+      try {
+        final response = await http.post(
+          Uri.parse('$baseUrl/clear-team-players'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'id': teamId}),
+        );
+        if (response.statusCode != 200) print('Failed to clear team players from cloud: ${response.body}');
+      } catch (e) { print('Clear team players from cloud error: $e'); }
+    });
+  }
+
   Future<CloudSavedTeamsData?> downloadSavedTeams() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/saved-teams'));
