@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../app/theme.dart';
+import '../../../../app/di.dart';
+import '../../../../core/services/sync_service.dart';
 
 class ContactPage extends StatefulWidget {
   const ContactPage({super.key});
@@ -147,18 +149,28 @@ class _ContactPageState extends State<ContactPage> {
     );
   }
 
-  void _handleSend() {
+  void _handleSend() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSending = true);
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-          setState(() => _isSending = false);
+      
+      final success = await getIt<SyncService>().sendFeedback(
+        _emailController.text,
+        _messageController.text,
+      );
+
+      if (mounted) {
+        setState(() => _isSending = false);
+        if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Thanks! We have received your message.')),
           );
           Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error sending message. Please try again.')),
+          );
         }
-      });
+      }
     }
   }
 }

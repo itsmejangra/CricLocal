@@ -214,6 +214,20 @@ class SyncService {
     }
     return {'batters': [], 'bowlers': [], 'allRounders': []};
   }
+
+  Future<bool> sendFeedback(String email, String message) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/contact'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'message': message}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error sending feedback: $e');
+      return false;
+    }
+  }
 }
 
 class CloudSavedTeamsData {
