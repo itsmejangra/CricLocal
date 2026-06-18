@@ -267,7 +267,23 @@ export default {
 				if (!stats || (stats as any).matchCount === 0) {
 					return new Response(JSON.stringify({}), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 				}
-				return new Response(JSON.stringify(stats), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+				const best = await env.DB.prepare(`
+					SELECT bi.wickets, bi.runsConceded 
+					FROM bowler_innings bi
+					JOIN players p ON bi.playerId = p.id
+					WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
+					ORDER BY bi.wickets DESC, bi.runsConceded ASC
+					LIMIT 1
+				`).bind(name).first();
+
+				const finalStats = { 
+					...(stats as object), 
+					bestWickets: (best as any)?.wickets ?? 0, 
+					bestRuns: (best as any)?.runsConceded ?? 0 
+				};
+
+				return new Response(JSON.stringify(finalStats), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 			}
 
 			// ── GET LEADERBOARDS ───────────────────────────────────────────────
