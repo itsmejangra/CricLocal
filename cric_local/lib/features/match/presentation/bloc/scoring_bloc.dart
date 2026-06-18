@@ -310,7 +310,7 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
 
       var striker = currentState.striker;
       var nonStriker = currentState.nonStriker;
-      if (shouldSwap && !event.isWicket) {
+      if (shouldSwap) {
         final temp = striker;
         striker = nonStriker;
         nonStriker = temp;
@@ -830,7 +830,8 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
 
     if (ball.isWicket) {
       final type = ball.dismissalType?.displayName ?? 'out';
-      return '$prefix OUT! $type.';
+      final runsStr = ball.totalRuns > 0 ? ' (${ball.totalRuns} runs completed)' : '';
+      return '$prefix OUT! $type.$runsStr';
     }
 
     if (ball.isWide) return '$prefix wide ball, drifting down leg.';

@@ -388,8 +388,8 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
     return Material(color: AppTheme.wicketRed, borderRadius: BorderRadius.circular(12),
       child: InkWell(borderRadius: BorderRadius.circular(12),
         onTap: () => showModalBottomSheet(context: context, isScrollControlled: true,
-          builder: (_) => WicketModal(onConfirm: (type, fielderId, fielder2Id, dismissedId) {
-            _bloc.add(RecordBall(isWicket: true, dismissalType: type, dismissedPlayerId: dismissedId, fielder1Id: fielderId, fielder2Id: fielder2Id));
+          builder: (_) => WicketModal(onConfirm: (type, fielderId, fielder2Id, dismissedId, runs) {
+            _bloc.add(RecordBall(isWicket: true, dismissalType: type, dismissedPlayerId: dismissedId, fielder1Id: fielderId, fielder2Id: fielder2Id, runs: runs));
           }, players: (_bloc.state is ScoringActive) ? ((_bloc.state as ScoringActive).allPlayers) : [],
             striker: (_bloc.state is ScoringActive) ? (_bloc.state as ScoringActive).striker : null,
             nonStriker: (_bloc.state is ScoringActive) ? (_bloc.state as ScoringActive).nonStriker : null,

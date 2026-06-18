@@ -4,7 +4,7 @@ import '../../../../core/enums.dart';
 import '../../../match/data/models/models.dart';
 
 class WicketModal extends StatefulWidget {
-  final Function(DismissalType type, String? fielderId, String? fielder2Id, String? dismissedId) onConfirm;
+  final Function(DismissalType type, String? fielderId, String? fielder2Id, String? dismissedId, int runs) onConfirm;
   final List<PlayerModel> players;
   final PlayerModel? striker;
   final PlayerModel? nonStriker;
@@ -20,6 +20,7 @@ class _WicketModalState extends State<WicketModal> {
   String? _fielderId;
   String? _fielder2Id;
   String? _dismissedId;
+  int _runsCompleted = 0;
 
   @override
   void initState() {
@@ -79,10 +80,16 @@ class _WicketModalState extends State<WicketModal> {
             items: _fieldingPlayers.where((p) => p.id != _fielderId).map((p) => DropdownMenuItem(value: p.id, child: Text(p.displayName))).toList(),
             onChanged: (v) => setState(() => _fielder2Id = v)),
         ],
+        const SizedBox(height: 16),
+        Text('Runs completed?', style: AppTheme.titleMedium),
+        const SizedBox(height: 8),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [0, 1, 2, 3].map((r) =>
+          ChoiceChip(label: Text('$r'), selected: _runsCompleted == r,
+            onSelected: (_) => setState(() => _runsCompleted = r))).toList()),
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: () { Navigator.pop(context);
-            widget.onConfirm(_type, _fielderId, _fielder2Id, _dismissedId ?? widget.striker?.id); },
+            widget.onConfirm(_type, _fielderId, _fielder2Id, _dismissedId ?? widget.striker?.id, _runsCompleted); },
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.wicketRed, padding: const EdgeInsets.symmetric(vertical: 14)),
           child: const Text('Confirm Wicket', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600)),
         ),
