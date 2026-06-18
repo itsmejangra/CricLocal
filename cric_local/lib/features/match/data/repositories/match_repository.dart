@@ -292,7 +292,8 @@ class MatchRepository {
         COUNT(bi.id) as innings,
         COUNT(DISTINCT p.matchId) as matchCount,
         COUNT(CASE WHEN bi.runs >= 30 AND bi.runs < 50 THEN 1 END) as thirties,
-        COUNT(CASE WHEN bi.runs >= 50 THEN 1 END) as fifties
+        COUNT(CASE WHEN bi.runs >= 50 AND bi.runs < 100 THEN 1 END) as fifties,
+        COUNT(CASE WHEN bi.runs >= 100 THEN 1 END) as hundreds
       FROM players p
       LEFT JOIN batsman_innings bi ON bi.playerId = p.id
       WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
@@ -317,7 +318,26 @@ class MatchRepository {
     ''', [playerName]);
 
     if (rows.isEmpty || rows.first['matchCount'] == 0) return {};
-    return rows.first;
+
+    final bestRows = await _db.rawQuery('''
+      SELECT bi.wickets, bi.runsConceded 
+      FROM bowler_innings bi
+      JOIN players p ON bi.playerId = p.id
+      WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
+      ORDER BY bi.wickets DESC, bi.runsConceded ASC
+      LIMIT 1
+    ''', [playerName]);
+
+    final stats = Map<String, dynamic>.from(rows.first);
+    if (bestRows.isNotEmpty) {
+      stats['bestWickets'] = bestRows.first['wickets'];
+      stats['bestRuns'] = bestRows.first['runsConceded'];
+    } else {
+      stats['bestWickets'] = 0;
+      stats['bestRuns'] = 0;
+    }
+
+    return stats;
   }
 
   // ── Saved Teams CRUD ────────────────────────────────────────────────────

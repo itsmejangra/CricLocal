@@ -199,6 +199,15 @@ export default {
 				const body = await request.json();
 				const teamId = body.id;
 				await env.DB.prepare("DELETE FROM saved_teams WHERE id = ?").bind(teamId).run();
+				await env.DB.prepare("DELETE FROM saved_team_players WHERE teamId = ?").bind(teamId).run();
+				return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+
+			// ── CLEAR TEAM PLAYERS ────────────────────────────────────────────────
+			if (pathname === "/clear-team-players" && request.method === "POST") {
+				const body = await request.json();
+				const teamId = body.id;
+				await env.DB.prepare("DELETE FROM saved_team_players WHERE teamId = ?").bind(teamId).run();
 				return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 			}
 
@@ -226,7 +235,8 @@ export default {
 						COUNT(bi.id) as innings,
 						COUNT(DISTINCT p.matchId) as matchCount,
 						COUNT(CASE WHEN bi.runs >= 30 AND bi.runs < 50 THEN 1 END) as thirties,
-						COUNT(CASE WHEN bi.runs >= 50 THEN 1 END) as fifties
+						COUNT(CASE WHEN bi.runs >= 50 AND bi.runs < 100 THEN 1 END) as fifties,
+						COUNT(CASE WHEN bi.runs >= 100 THEN 1 END) as hundreds
 					FROM players p
 					LEFT JOIN batsman_innings bi ON bi.playerId = p.id
 					WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
@@ -325,6 +335,21 @@ export default {
 					bowlers: bowlers.results,
 					allRounders: allRounders.results
 				}), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+			
+			// ── CONTACT FEEDBACK ──────────────────────────────────────────────────
+			if (pathname === "/contact" && request.method === "POST") {
+				const body = await request.json();
+				const { email, message } = body;
+				await env.DB.prepare("INSERT INTO feedback (email, message, createdAt) VALUES (?, ?, ?)")
+					.bind(email, message, new Date().toISOString()).run();
+				return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+
+			// ── GET FEEDBACKS (Admin) ────────────────────────────────────────────────
+			if (pathname === "/feedbacks" && request.method === "GET") {
+				const feedbacks = await env.DB.prepare("SELECT * FROM feedback ORDER BY createdAt DESC").all();
+				return new Response(JSON.stringify(feedbacks.results), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 			}
 
 			return new Response("Not Found", { status: 404, headers: corsHeaders });

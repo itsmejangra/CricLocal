@@ -72,6 +72,18 @@ class _PlayerStatsPageState extends State<PlayerStatsPage>
       if (merged.containsKey(key)) {
         if (key == 'highestScore') {
           merged[key] = (merged[key] as num) > (value as num) ? merged[key] : value;
+        } else if (key == 'bestWickets') {
+          final localW = merged['bestWickets'] as int? ?? 0;
+          final remoteW = value as int? ?? 0;
+          final localR = merged['bestRuns'] as int? ?? 0;
+          final remoteR = remote['bestRuns'] as int? ?? 0;
+          
+          if (remoteW > localW || (remoteW == localW && remoteR < localR)) {
+            merged['bestWickets'] = remoteW;
+            merged['bestRuns'] = remoteR;
+          }
+        } else if (key == 'bestRuns') {
+          // Handled in bestWickets block
         } else if (value is num && merged[key] is num) {
           merged[key] = (merged[key] as num) + value;
         }
@@ -352,8 +364,13 @@ class _PlayerStatsPageState extends State<PlayerStatsPage>
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _metricCard('30s / 50s', '${s['thirties']} / ${s['fifties']}', AppTheme.accentTeal)),
-            const Spacer(),
+            Expanded(
+              child: _metricCard(
+                '30s / 50s / 100s',
+                '${s['thirties']} / ${s['fifties']} / ${s['hundreds']}',
+                AppTheme.accentTeal,
+              ),
+            ),
           ],
         ),
       ],
@@ -424,7 +441,14 @@ class _PlayerStatsPageState extends State<PlayerStatsPage>
         Row(
           children: [
             Expanded(child: _metricCard('Overs', _formattedOvers(s['ballsBowled'] ?? 0), AppTheme.accentTeal)),
-            const Spacer(),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _metricCard(
+                'Best Bowling',
+                '${s['bestWickets']}/${s['bestRuns']}',
+                AppTheme.primaryBlue,
+              ),
+            ),
           ],
         ),
       ],
