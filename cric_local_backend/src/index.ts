@@ -368,6 +368,35 @@ export default {
 				return new Response(JSON.stringify(feedbacks.results), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 			}
 
+			// ── GET NOTIFICATIONS ──────────────────────────────────────────────────
+			if (pathname === "/notifications" && request.method === "GET") {
+				const notifications = [
+					{
+						id: 'apk-210',
+						title: 'New APK Available!',
+						message: 'Version 2.1.0 is now available with improved live scoring and bug fixes. Download now!',
+						type: 'update',
+						createdAt: new Date().toISOString(),
+						actionUrl: 'https://cric-local-api.eduhub.workers.dev/download/apk'
+					},
+					{
+						id: 'feat-search',
+						title: 'Global Search Added',
+						message: 'You can now search for players, teams, and matches globally across the app.',
+						type: 'feature',
+						createdAt: new Date(Date.now() - 86400000).toISOString(),
+					},
+					{
+						id: 'feat-w-plus',
+						title: 'W+1 Run Out Scoring',
+						message: 'Accurately record runs completed during run-out dismissals in the scoring ribbon.',
+						type: 'feature',
+						createdAt: new Date(Date.now() - 172800000).toISOString(),
+					}
+				];
+				return new Response(JSON.stringify(notifications), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+			}
+
 			return new Response("Not Found", { status: 404, headers: corsHeaders });
 		} catch (error: any) {
 			return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
