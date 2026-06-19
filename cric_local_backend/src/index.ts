@@ -399,7 +399,7 @@ export default {
 
 			// ── DOWNLOAD APK ──────────────────────────────────────────────────────
 			if (pathname === "/download/apk" && request.method === "GET") {
-				return Response.redirect("https://github.com/itsmejangra/CricLocal/raw/master/cric_local/releases/CricHero.apk", 302);
+				return Response.redirect("https://github.com/itsmejangra/CricLocal/raw/main/cric_local/releases/CricHero.apk?v=210", 302);
 			}
 
 			return new Response("Not Found", { status: 404, headers: corsHeaders });
