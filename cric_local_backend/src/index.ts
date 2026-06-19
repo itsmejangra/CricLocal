@@ -397,6 +397,11 @@ export default {
 				return new Response(JSON.stringify(notifications), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 			}
 
+			// ── DOWNLOAD APK ──────────────────────────────────────────────────────
+			if (pathname === "/download/apk" && request.method === "GET") {
+				return Response.redirect("https://github.com/itsmejangra/CricLocal/raw/master/cric_local/releases/CricHero.apk", 302);
+			}
+
 			return new Response("Not Found", { status: 404, headers: corsHeaders });
 		} catch (error: any) {
 			return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
