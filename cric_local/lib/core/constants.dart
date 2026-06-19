@@ -20,5 +20,5 @@ class AppConstants {
 
   /// Latest Android APK hosted on GitHub (outside Pages to avoid size limits).
   static const String apkDownloadUrl =
-      'https://github.com/itsmejangra/CricLocal/raw/master/cric_local/releases/CricHero.apk';
+      'https://github.com/itsmejangra/CricLocal/raw/main/cric_local/releases/CricHero.apk?v=210';
 }
