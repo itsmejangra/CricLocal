@@ -132,6 +132,16 @@ class MatchRepository {
     }
   }
 
+  Future<List<PlayerModel>> searchPlayers(String name) async {
+    final rows = await _db.query('players',
+      where: 'name LIKE ?', whereArgs: ['%$name%'],
+      limit: 20);
+    final players = rows.map((r) => PlayerModel.fromMap(r)).toList();
+    // Dedup by name if they appear in multiple matches
+    final seen = <String>{};
+    return players.where((p) => seen.add(p.name.toLowerCase().trim())).toList();
+  }
+
   // ── Innings CRUD ────────────────────────────────────────────────────────
 
   Future<InningsModel> createInnings({

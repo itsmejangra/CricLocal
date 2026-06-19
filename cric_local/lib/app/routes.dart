@@ -14,6 +14,7 @@ import '../features/home/presentation/pages/awards_page.dart';
 import '../features/home/presentation/pages/contact_page.dart';
 import '../features/home/presentation/pages/explorer_page.dart';
 import '../features/home/presentation/pages/profile_page.dart';
+import '../features/home/presentation/pages/notification_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -53,5 +54,6 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/associations', builder: (context, state) => const ExplorerPage(title: 'Associations', type: 'Association')),
     GoRoute(path: '/clubs', builder: (context, state) => const ExplorerPage(title: 'Clubs', type: 'Club')),
     GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
+    GoRoute(path: '/notifications', builder: (context, state) => const NotificationPage()),
   ],
 );

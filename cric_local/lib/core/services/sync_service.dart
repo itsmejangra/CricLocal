@@ -237,9 +237,45 @@ class SyncService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Error sending feedback: $e');
       return false;
     }
+  }
+
+  Future<List<Map<String, dynamic>>> getNotifications() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/notifications'));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.cast<Map<String, dynamic>>();
+      }
+    } catch (e) {
+      print('Error fetching notifications: $e');
+    }
+    // Fallback/Mock notifications for development/demo
+    return [
+      {
+        'id': '1',
+        'title': 'New APK Available!',
+        'message': 'Version 2.1.0 is now available with improved live scoring and bug fixes. Download now!',
+        'type': 'update',
+        'createdAt': DateTime.now().subtract(const Duration(hours: 2)).toIso8601String(),
+        'actionUrl': 'https://cric-local-api.eduhub.workers.dev/download/apk'
+      },
+      {
+        'id': '2',
+        'title': 'Global Search Added',
+        'message': 'You can now search for players, teams, and matches globally across the app.',
+        'type': 'feature',
+        'createdAt': DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
+      },
+      {
+        'id': '3',
+        'title': 'W+1 Run Out Scoring',
+        'message': 'Accurately record runs completed during run-out dismissals in the scoring ribbon.',
+        'type': 'feature',
+        'createdAt': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
+      }
+    ];
   }
 }
 

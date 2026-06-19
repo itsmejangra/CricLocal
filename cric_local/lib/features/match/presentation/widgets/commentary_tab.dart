@@ -229,20 +229,16 @@ class _CommentaryTabState extends State<CommentaryTab> {
                 for (final ball in sorted) {
                   PdfColor chipBg = PdfColors.grey300;
                   PdfColor chipText = PdfColors.black;
-                  String chipLabel = '${ball.totalRuns}';
-
+                  String chipLabel = ball.displayString.toUpperCase();
                   if (ball.isWicket) {
                     chipBg = PdfColors.red900;
                     chipText = PdfColors.white;
-                    chipLabel = 'W';
                   } else if (ball.isWide) {
                     chipBg = PdfColors.amber100;
                     chipText = PdfColors.amber900;
-                    chipLabel = 'WD';
                   } else if (ball.isNoBall) {
                     chipBg = PdfColors.orange100;
                     chipText = PdfColors.orange900;
-                    chipLabel = 'NB';
                   } else if (ball.runsScored == 4) {
                     chipBg = PdfColors.blue100;
                     chipText = PdfColors.blue900;
@@ -428,18 +424,15 @@ class _CommentaryTabState extends State<CommentaryTab> {
   }
 
   Widget _ballResultChip(DeliveryModel ball) {
+    String text = ball.displayString.toUpperCase();
     Color bg = AppTheme.textHint;
-    String text = '${ball.totalRuns}';
 
     if (ball.isWicket) {
       bg = AppTheme.wicketRed;
-      text = 'W';
     } else if (ball.isWide) {
       bg = AppTheme.wideColor;
-      text = 'WD';
     } else if (ball.isNoBall) {
       bg = AppTheme.noBallColor;
-      text = 'NB';
     } else if (ball.runsScored == 4) {
       bg = AppTheme.fourColor;
     } else if (ball.runsScored == 6) {

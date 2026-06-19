@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../app/theme.dart';
@@ -9,6 +11,7 @@ import '../../../../features/match/data/repositories/match_repository.dart';
 import '../../../../app/di.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/match_card.dart';
+import '../widgets/global_search_delegate.dart';
 import '../../../../core/services/sync_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -104,13 +107,28 @@ class _HomePageState extends State<HomePage> {
               tooltip: 'Download Android App',
               onPressed: () => launchUrl(Uri.parse(AppConstants.apkDownloadUrl), mode: LaunchMode.externalApplication),
             ),
-          IconButton(icon: const Icon(Icons.chat_bubble_outline), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search anything',
+            onPressed: () => showSearch(
+              context: context,
+              delegate: GlobalSearchDelegate(
+                localMatches: _localMatches,
+                liveMatches: _liveMatches,
+              ),
+            ),
+          ),
           Stack(children: [
-            IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
-            Positioned(right: 8, top: 8, child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(color: AppTheme.accentTeal, shape: BoxShape.circle),
-              child: Text('3', style: AppTheme.bodySmall.copyWith(color: Colors.white, fontSize: 10)),
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: () => context.push('/notifications'),
+            ),
+            Positioned(right: 8, top: 8, child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(color: AppTheme.accentTeal, shape: BoxShape.circle),
+                child: Text('3', style: AppTheme.bodySmall.copyWith(color: Colors.white, fontSize: 10)),
+              ),
             )),
           ]),
         ],
@@ -197,13 +215,32 @@ class _HomePageState extends State<HomePage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
+        type: BottomNavigationBarType.fixed,
+        onTap: (i) {
+          setState(() => _currentIndex = i);
+          if (i == 0) return; // Already on Home
+          
+          if (i == 1) {
+            context.push('/leaderboards');
+          } else if (i == 2) {
+            context.push('/awards');
+          } else if (i == 3) {
+            context.push('/contact');
+          } else if (i == 4) {
+             _showShareOptions();
+          }
+          // Reset index to home after navigation/action so home stays selected 
+          // (standard pattern for action-based bottom items)
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) setState(() => _currentIndex = 0);
+          });
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'Looking'),
-          BottomNavigationBarItem(icon: Icon(Icons.sports_cricket_outlined), activeIcon: Icon(Icons.sports_cricket), label: 'My Cricket'),
-          BottomNavigationBarItem(icon: Icon(Icons.groups_outlined), activeIcon: Icon(Icons.groups), label: 'Community'),
-          BottomNavigationBarItem(icon: Icon(Icons.store_outlined), activeIcon: Icon(Icons.store), label: 'Store'),
+          BottomNavigationBarItem(icon: Icon(Icons.leaderboard_outlined), activeIcon: Icon(Icons.leaderboard), label: 'Leaderboards'),
+          BottomNavigationBarItem(icon: Icon(Icons.military_tech_outlined), activeIcon: Icon(Icons.military_tech), label: 'Awards'),
+          BottomNavigationBarItem(icon: Icon(Icons.phone_outlined), activeIcon: Icon(Icons.phone), label: 'Contact'),
+          BottomNavigationBarItem(icon: Icon(Icons.share_outlined), activeIcon: Icon(Icons.share), label: 'Share'),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -244,6 +281,126 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 8),
         Text('Tap + to start your first match!', style: AppTheme.bodySmall),
       ]),
+    );
+  }
+
+  void _showShareOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppTheme.backgroundGray, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 24),
+            Text('Share CricLocal', style: AppTheme.headlineSmall.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Invite your friends to the ultimate cricket experience', style: AppTheme.bodySmall, textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _shareCircle(Icons.link, 'Copy Link', AppTheme.primaryBlue, () {
+                  final appUrl = 'https://criclocal.eduhubacademy.org';
+                  Clipboard.setData(ClipboardData(text: appUrl));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('App link copied to clipboard!')));
+                }),
+                _shareCircle(Icons.qr_code, 'QR Code', AppTheme.accentTeal, () {
+                  Navigator.pop(ctx);
+                  _showQRCodeDialog();
+                }),
+                _shareCircle(Icons.more_horiz, 'System', Colors.grey, () {
+                  Navigator.pop(ctx);
+                  final appUrl = 'https://criclocal.eduhubacademy.org';
+                  Share.share('Check out CricLocal for live cricket scoring: $appUrl');
+                }),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _shareCircle(IconData icon, String label, Color color, VoidCallback onTap) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(30),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: Icon(icon, color: color, size: 28),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  void _showQRCodeDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Scan to Share'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Image.network(
+                'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${Uri.encodeComponent('https://criclocal.eduhubacademy.org')}',
+                width: 200,
+                height: 200,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          SizedBox(height: 8),
+                          Text('Failed to load QR code', style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('Scan this code to open CricLocal', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CLOSE')),
+        ],
+      ),
     );
   }
 }
