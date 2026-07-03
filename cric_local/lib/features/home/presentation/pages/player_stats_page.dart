@@ -7,7 +7,8 @@ import '../../../../core/services/sync_service.dart';
 
 class PlayerStatsPage extends StatefulWidget {
   final String playerName;
-  const PlayerStatsPage({super.key, required this.playerName});
+  final String? creatorId;
+  const PlayerStatsPage({super.key, required this.playerName, this.creatorId});
 
   @override
   State<PlayerStatsPage> createState() => _PlayerStatsPageState();
@@ -43,12 +44,15 @@ class _PlayerStatsPageState extends State<PlayerStatsPage>
     final sync = getIt<SyncService>();
 
     // Fetch local stats
-    Map<String, dynamic> localBat = await repo.getBattingStats(widget.playerName);
-    Map<String, dynamic> localBowl = await repo.getBowlingStats(widget.playerName);
+    final localBat = await repo.getBattingStats(widget.playerName);
+    final localBowl = await repo.getBowlingStats(widget.playerName);
+
+    // Resolve creator ID for cloud query
+    final resolvedCreatorId = widget.creatorId;
 
     // Fetch remote stats
-    Map<String, dynamic> remoteBat = await sync.getPlayerBattingStats(widget.playerName);
-    Map<String, dynamic> remoteBowl = await sync.getPlayerBowlingStats(widget.playerName);
+    final remoteBat = await sync.getPlayerBattingStats(widget.playerName, creatorId: resolvedCreatorId);
+    final remoteBowl = await sync.getPlayerBowlingStats(widget.playerName, creatorId: resolvedCreatorId);
 
     if (mounted) {
       setState(() {
@@ -64,33 +68,40 @@ class _PlayerStatsPageState extends State<PlayerStatsPage>
     if (local.isEmpty) return remote;
     if (remote.isEmpty) return local;
 
-    // Merge logic: sum up the counts/totals, max the highests
-    final merged = Map<String, dynamic>.from(local);
-    
-    // Common keys in both maps
-    remote.forEach((key, value) {
-      if (merged.containsKey(key)) {
-        if (key == 'highestScore') {
-          merged[key] = (merged[key] as num) > (value as num) ? merged[key] : value;
-        } else if (key == 'bestWickets') {
-          final localW = merged['bestWickets'] as int? ?? 0;
-          final remoteW = value as int? ?? 0;
-          final localR = merged['bestRuns'] as int? ?? 0;
-          final remoteR = remote['bestRuns'] as int? ?? 0;
-          
-          if (remoteW > localW || (remoteW == localW && remoteR < localR)) {
-            merged['bestWickets'] = remoteW;
-            merged['bestRuns'] = remoteR;
-          }
-        } else if (key == 'bestRuns') {
-          // Handled in bestWickets block
-        } else if (value is num && merged[key] is num) {
-          merged[key] = (merged[key] as num) + value;
-        }
-      } else {
-        merged[key] = value;
+    // Both contain overlapping match data because local is synced to cloud.
+    // Use the source with more matches as the base (most complete dataset),
+    // then take the best of highestScore / bestWickets from either source.
+    final localMatches = (local['matchCount'] as num?) ?? 0;
+    final remoteMatches = (remote['matchCount'] as num?) ?? 0;
+
+    final Map<String, dynamic> merged;
+    final Map<String, dynamic> other;
+    if (remoteMatches >= localMatches) {
+      merged = Map<String, dynamic>.from(remote);
+      other = local;
+    } else {
+      merged = Map<String, dynamic>.from(local);
+      other = remote;
+    }
+
+    // For peak-value stats, take the best across both sources
+    if (other.containsKey('highestScore') && merged.containsKey('highestScore')) {
+      final otherHS = (other['highestScore'] as num?) ?? 0;
+      final mergedHS = (merged['highestScore'] as num?) ?? 0;
+      if (otherHS > mergedHS) merged['highestScore'] = otherHS;
+    }
+
+    if (other.containsKey('bestWickets') && merged.containsKey('bestWickets')) {
+      final otherW = (other['bestWickets'] as int?) ?? 0;
+      final mergedW = (merged['bestWickets'] as int?) ?? 0;
+      final otherR = (other['bestRuns'] as int?) ?? 0;
+      final mergedR = (merged['bestRuns'] as int?) ?? 0;
+
+      if (otherW > mergedW || (otherW == mergedW && otherR < mergedR)) {
+        merged['bestWickets'] = otherW;
+        merged['bestRuns'] = otherR;
       }
-    });
+    }
 
     return merged;
   }
