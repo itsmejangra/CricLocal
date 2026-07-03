@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:get_it/get_it.dart';
+import 'package:cric_local/core/database/database_helper.dart';
 import '../../features/match/data/models/models.dart';
 
 class SyncService {
@@ -7,6 +9,20 @@ class SyncService {
 
   final List<Future<void> Function()> _queue = [];
   bool _isProcessing = false;
+
+  Future<String> _getDeviceId() async {
+    try {
+      final dbHelper = GetIt.instance<DatabaseHelper>();
+      final db = await dbHelper.database;
+      final rows = await db.query('user_profile', where: 'id = 1');
+      if (rows.isNotEmpty && rows.first['deviceId'] != null) {
+        return rows.first['deviceId'] as String;
+      }
+    } catch (e) {
+      print('Error getting device ID in SyncService: $e');
+    }
+    return '';
+  }
 
   void _enqueue(Future<void> Function() task) {
     _queue.add(task);
@@ -38,6 +54,20 @@ class SyncService {
         if (response.statusCode != 200) print('Failed to sync match: ${response.body}');
       } catch (e) { print('Sync match error: $e'); }
     });
+  }
+
+  Future<bool> updateYoutubeVideoIdDirect(String matchId, String? youtubeVideoId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/match/$matchId/youtube'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'youtubeVideoId': youtubeVideoId}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Update youtube video ID direct error: $e');
+      return false;
+    }
   }
 
   void syncInnings(InningsModel innings) {
@@ -121,10 +151,13 @@ class SyncService {
   void syncSavedTeam(SavedTeam team) {
     _enqueue(() async {
       try {
+        final deviceId = await _getDeviceId();
+        final body = team.toMap();
+        body['creatorId'] = deviceId;
         final response = await http.post(
           Uri.parse('$baseUrl/sync-saved-team'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(team.toMap()),
+          body: jsonEncode(body),
         );
         if (response.statusCode != 200) print('Failed to sync saved team: ${response.body}');
       } catch (e) { print('Sync saved team error: $e'); }
@@ -147,10 +180,11 @@ class SyncService {
   void deleteSavedTeamFromCloud(String teamId) {
     _enqueue(() async {
       try {
+        final deviceId = await _getDeviceId();
         final response = await http.post(
           Uri.parse('$baseUrl/delete-saved-team'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'id': teamId}),
+          body: jsonEncode({'id': teamId, 'creatorId': deviceId}),
         );
         if (response.statusCode != 200) print('Failed to delete saved team from cloud: ${response.body}');
       } catch (e) { print('Delete saved team from cloud error: $e'); }
@@ -160,10 +194,11 @@ class SyncService {
   void clearSavedTeamPlayersFromCloud(String teamId) {
     _enqueue(() async {
       try {
+        final deviceId = await _getDeviceId();
         final response = await http.post(
           Uri.parse('$baseUrl/clear-team-players'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'id': teamId}),
+          body: jsonEncode({'id': teamId, 'creatorId': deviceId}),
         );
         if (response.statusCode != 200) print('Failed to clear team players from cloud: ${response.body}');
       } catch (e) { print('Clear team players from cloud error: $e'); }
@@ -172,7 +207,11 @@ class SyncService {
 
   Future<CloudSavedTeamsData?> downloadSavedTeams() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/saved-teams'));
+      final deviceId = await _getDeviceId();
+      final uri = Uri.parse('$baseUrl/saved-teams').replace(
+        queryParameters: deviceId.isNotEmpty ? {'creatorId': deviceId} : null,
+      );
+      final response = await http.get(uri);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return CloudSavedTeamsData.fromMap(data);
@@ -196,9 +235,11 @@ class SyncService {
     return [];
   }
 
-  Future<Map<String, dynamic>> getPlayerBattingStats(String playerName) async {
+  Future<Map<String, dynamic>> getPlayerBattingStats(String playerName, {String? creatorId}) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/player-stats/batting/${Uri.encodeComponent(playerName)}'));
+      final uri = Uri.parse('$baseUrl/player-stats/batting/${Uri.encodeComponent(playerName)}')
+          .replace(queryParameters: creatorId != null ? {'creatorId': creatorId} : null);
+      final response = await http.get(uri);
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
@@ -206,14 +247,28 @@ class SyncService {
     return {};
   }
 
-  Future<Map<String, dynamic>> getPlayerBowlingStats(String playerName) async {
+  Future<Map<String, dynamic>> getPlayerBowlingStats(String playerName, {String? creatorId}) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/player-stats/bowling/${Uri.encodeComponent(playerName)}'));
+      final uri = Uri.parse('$baseUrl/player-stats/bowling/${Uri.encodeComponent(playerName)}')
+          .replace(queryParameters: creatorId != null ? {'creatorId': creatorId} : null);
+      final response = await http.get(uri);
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
     } catch (e) { print('Error fetching remote bowling stats: $e'); }
     return {};
+  }
+
+  Future<Map<String, dynamic>> getTeamH2HStats(String team1, String team2, {String? creatorId}) async {
+    try {
+      final uri = Uri.parse('$baseUrl/team-h2h/${Uri.encodeComponent(team1)}/${Uri.encodeComponent(team2)}')
+          .replace(queryParameters: creatorId != null ? {'creatorId': creatorId} : null);
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) { print('Error fetching remote team H2H stats: $e'); }
+    return {'totalMatches': 0};
   }
 
   Future<Map<String, dynamic>> getLeaderboards() async {
