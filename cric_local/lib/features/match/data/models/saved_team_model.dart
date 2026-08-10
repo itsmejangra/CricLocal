@@ -56,12 +56,14 @@ class SavedTeamPlayer extends Equatable {
   final String teamId;
   final String name;
   final int orderIndex;
+  final bool isCaptain;
 
   const SavedTeamPlayer({
     required this.id,
     required this.teamId,
     required this.name,
     required this.orderIndex,
+    this.isCaptain = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -70,6 +72,7 @@ class SavedTeamPlayer extends Equatable {
       'teamId': teamId,
       'name': name,
       'orderIndex': orderIndex,
+      'isCaptain': isCaptain ? 1 : 0,
     };
   }
 
@@ -79,6 +82,7 @@ class SavedTeamPlayer extends Equatable {
       teamId: map['teamId'] as String,
       name: map['name'] as String,
       orderIndex: map['orderIndex'] as int,
+      isCaptain: (map['isCaptain'] as int? ?? 0) == 1,
     );
   }
 
@@ -87,15 +91,17 @@ class SavedTeamPlayer extends Equatable {
     String? teamId,
     String? name,
     int? orderIndex,
+    bool? isCaptain,
   }) {
     return SavedTeamPlayer(
       id: id ?? this.id,
       teamId: teamId ?? this.teamId,
       name: name ?? this.name,
       orderIndex: orderIndex ?? this.orderIndex,
+      isCaptain: isCaptain ?? this.isCaptain,
     );
   }
 
   @override
-  List<Object?> get props => [id, teamId, name, orderIndex];
+  List<Object?> get props => [id, teamId, name, orderIndex, isCaptain];
 }

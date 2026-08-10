@@ -8,7 +8,7 @@ class AppConstants {
 
   // Database
   static const String dbName = 'cric_local.db';
-  static const int dbVersion = 4;
+  static const int dbVersion = 8;
 
   // Cricket rules
   static const int ballsPerOver = 6;
@@ -18,7 +18,7 @@ class AppConstants {
   static const int defaultOvers = 20;
   static const int defaultPlayersPerSide = 11;
 
-  /// Latest Android APK hosted on GitHub (outside Pages to avoid size limits).
+  /// Latest Android APK hosted on the site.
   static const String apkDownloadUrl =
-      'https://github.com/itsmejangra/CricLocal/raw/main/cric_local/releases/CricHero.apk?v=210';
+      'https://criclocal.eduhubacademy.org/CricHero.apk';
 }

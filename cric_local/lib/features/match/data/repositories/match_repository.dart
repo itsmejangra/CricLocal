@@ -19,24 +19,53 @@ class MatchRepository {
     String? tossWinner, TossDecision? tossDecision, MatchFormat format = MatchFormat.custom,
   }) async {
     final now = DateTime.now();
+    final creatorId = await getOrCreateDeviceId();
     final match = MatchModel(
       id: _uuid.v4(), title: title, format: format, totalOvers: totalOvers,
       playersPerSide: playersPerSide, team1Name: team1Name, team2Name: team2Name,
       tossWinner: tossWinner, tossDecision: tossDecision, venue: venue,
       matchDate: now, status: MatchStatus.upcoming, createdAt: now, updatedAt: now,
+      creatorId: creatorId,
     );
     await _db.insert('matches', match.toMap());
     _sync.syncMatch(match); // Async cloud sync
     return match;
   }
 
+  Future<void> _autoAbandonExpiredMatches() async {
+    try {
+      final now = DateTime.now();
+      final rows = await _db.query('matches', where: 'status = ?', whereArgs: ['live']);
+      for (final row in rows) {
+        final match = MatchModel.fromMap(row);
+        if (now.difference(match.updatedAt).inHours >= 24) {
+          final nowStr = now.toIso8601String();
+          await _db.update(
+            'matches',
+            {'status': MatchStatus.abandoned.name, 'updatedAt': nowStr},
+            where: 'id = ?',
+            whereArgs: [match.id],
+          );
+          _sync.syncMatch(match.copyWith(
+            status: MatchStatus.abandoned,
+            updatedAt: now,
+          ));
+        }
+      }
+    } catch (e) {
+      print('Error auto-abandoning expired matches: $e');
+    }
+  }
+
   Future<MatchModel?> getMatch(String id) async {
+    await _autoAbandonExpiredMatches();
     final rows = await _db.query('matches', where: 'id = ?', whereArgs: [id]);
     if (rows.isEmpty) return null;
     return MatchModel.fromMap(rows.first);
   }
 
   Future<List<MatchModel>> getAllMatches() async {
+    await _autoAbandonExpiredMatches();
     final rows = await _db.query('matches', orderBy: 'createdAt DESC');
     return rows.map((r) => MatchModel.fromMap(r)).toList();
   }
@@ -57,6 +86,18 @@ class MatchRepository {
 
     final match = await getMatch(id);
     if (match != null) _sync.syncMatch(match);
+  }
+
+  Future<bool> updateMatchYoutubeVideoId(String id, String? youtubeVideoId) async {
+    final match = await getMatch(id);
+    if (match != null) {
+      await _db.update('matches', {
+        'youtubeVideoId': youtubeVideoId,
+        'updatedAt': DateTime.now().toIso8601String()
+      }, where: 'id = ?', whereArgs: [id]);
+    }
+
+    return await _sync.updateYoutubeVideoIdDirect(id, youtubeVideoId);
   }
 
   Future<void> deleteMatch(String id) async {
@@ -306,10 +347,10 @@ class MatchRepository {
         COUNT(CASE WHEN bi.runs >= 100 THEN 1 END) as hundreds
       FROM players p
       LEFT JOIN batsman_innings bi ON bi.playerId = p.id
-      WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
-    ''', [playerName]);
+      WHERE p.name LIKE ?
+    ''', [playerName.trim()]);
 
-    if (rows.isEmpty || rows.first['matchCount'] == 0) return {};
+    if (rows.isEmpty || (rows.first['matchCount'] ?? 0) == 0) return {};
     return rows.first;
   }
 
@@ -324,19 +365,19 @@ class MatchRepository {
         COUNT(DISTINCT p.matchId) as matchCount
       FROM players p
       LEFT JOIN bowler_innings bi ON bi.playerId = p.id
-      WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
-    ''', [playerName]);
+      WHERE p.name LIKE ?
+    ''', [playerName.trim()]);
 
-    if (rows.isEmpty || rows.first['matchCount'] == 0) return {};
+    if (rows.isEmpty || (rows.first['matchCount'] ?? 0) == 0) return {};
 
     final bestRows = await _db.rawQuery('''
       SELECT bi.wickets, bi.runsConceded 
       FROM bowler_innings bi
       JOIN players p ON bi.playerId = p.id
-      WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(?))
+      WHERE p.name LIKE ?
       ORDER BY bi.wickets DESC, bi.runsConceded ASC
       LIMIT 1
-    ''', [playerName]);
+    ''', [playerName.trim()]);
 
     final stats = Map<String, dynamic>.from(rows.first);
     if (bestRows.isNotEmpty) {
@@ -350,11 +391,99 @@ class MatchRepository {
     return stats;
   }
 
+  // ── Head-to-Head: Team vs Team ──────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getTeamH2HStats(String team1, String team2) async {
+    // Find all matches where these two teams played against each other
+    final rows = await _db.rawQuery('''
+      SELECT * FROM matches
+      WHERE (
+        (team1Name LIKE ? AND team2Name LIKE ?)
+        OR
+        (team1Name LIKE ? AND team2Name LIKE ?)
+      )
+      AND status = 'completed'
+      ORDER BY createdAt DESC
+    ''', [team1.trim(), team2.trim(), team2.trim(), team1.trim()]);
+
+    if (rows.isEmpty) {
+      return {'totalMatches': 0};
+    }
+
+    int t1Wins = 0;
+    int t2Wins = 0;
+    int draws = 0;
+    final recentMatches = <Map<String, dynamic>>[];
+
+    final t1Lower = team1.toLowerCase().trim();
+    final t2Lower = team2.toLowerCase().trim();
+
+    for (final row in rows) {
+      final winner = row['winnerTeam'] as String?;
+      if (winner != null) {
+        final winnerLower = winner.toLowerCase().trim();
+        if (winnerLower == t1Lower) {
+          t1Wins++;
+        } else if (winnerLower == t2Lower) {
+          t2Wins++;
+        } else {
+          draws++;
+        }
+      } else {
+        draws++;
+      }
+
+      recentMatches.add({
+        'title': row['title'],
+        'resultSummary': row['resultSummary'],
+        'winnerTeam': winner,
+        'matchDate': row['matchDate'],
+      });
+    }
+
+    // Get score stats from innings
+    final t1Scores = <int>[];
+    final t2Scores = <int>[];
+
+    for (final row in rows) {
+      final matchId = row['id'] as String;
+      final inningsRows = await _db.rawQuery(
+        'SELECT battingTeam, totalRuns FROM innings WHERE matchId = ?',
+        [matchId],
+      );
+
+      for (final inn in inningsRows) {
+        final battingTeamLower = (inn['battingTeam'] as String? ?? '').toLowerCase().trim();
+        final runs = inn['totalRuns'] as int? ?? 0;
+        if (battingTeamLower == t1Lower) {
+          t1Scores.add(runs);
+        } else if (battingTeamLower == t2Lower) {
+          t2Scores.add(runs);
+        }
+      }
+    }
+
+    return {
+      'totalMatches': rows.length,
+      'team1Wins': t1Wins,
+      'team2Wins': t2Wins,
+      'draws': draws,
+      'team1HighestScore': t1Scores.isNotEmpty ? t1Scores.reduce((a, b) => a > b ? a : b) : 0,
+      'team2HighestScore': t2Scores.isNotEmpty ? t2Scores.reduce((a, b) => a > b ? a : b) : 0,
+      'team1LowestScore': t1Scores.isNotEmpty ? t1Scores.reduce((a, b) => a < b ? a : b) : 0,
+      'team2LowestScore': t2Scores.isNotEmpty ? t2Scores.reduce((a, b) => a < b ? a : b) : 0,
+      'team1AvgScore': t1Scores.isNotEmpty ? t1Scores.reduce((a, b) => a + b) / t1Scores.length : 0.0,
+      'team2AvgScore': t2Scores.isNotEmpty ? t2Scores.reduce((a, b) => a + b) / t2Scores.length : 0.0,
+      'recentMatches': recentMatches,
+    };
+  }
+
   // ── Saved Teams CRUD ────────────────────────────────────────────────────
 
   Future<SavedTeam> createSavedTeam({
     required String name,
     required List<String> playerNames,
+    int? captainIndex,
   }) async {
     final now = DateTime.now();
     final teamId = _uuid.v4();
@@ -374,6 +503,7 @@ class MatchRepository {
           teamId: teamId,
           name: playerNames[i].trim(),
           orderIndex: i + 1,
+          isCaptain: captainIndex == i,
         );
         await txn.insert('saved_team_players', player.toMap());
         players.add(player);
@@ -408,6 +538,7 @@ class MatchRepository {
     required String teamId,
     required String name,
     required List<String> playerNames,
+    int? captainIndex,
   }) async {
     final now = DateTime.now();
     final rows = await _db.query('saved_teams', where: 'id = ?', whereArgs: [teamId]);
@@ -438,6 +569,7 @@ class MatchRepository {
           teamId: teamId,
           name: playerNames[i].trim(),
           orderIndex: i + 1,
+          isCaptain: captainIndex == i,
         );
         await txn.insert('saved_team_players', player.toMap());
         newPlayers.add(player);
@@ -508,11 +640,34 @@ class MatchRepository {
     }
   }
 
+  Future<String> getOrCreateDeviceId() async {
+    final rows = await _db.query('user_profile', where: 'id = 1');
+    if (rows.isNotEmpty && rows.first['deviceId'] != null) {
+      return rows.first['deviceId'] as String;
+    }
+    final newDeviceId = _uuid.v4();
+    if (rows.isEmpty) {
+      await _db.insert('user_profile', {
+        'id': 1,
+        'name': 'User',
+        'phone': '',
+        'deviceId': newDeviceId,
+      });
+    } else {
+      await _db.update('user_profile', {
+        'deviceId': newDeviceId,
+      }, where: 'id = 1');
+    }
+    return newDeviceId;
+  }
+
   Future<void> saveUserProfile(String name, String phone) async {
+    final devId = await getOrCreateDeviceId();
     await _db.insert('user_profile', {
       'id': 1,
       'name': name,
       'phone': phone,
+      'deviceId': devId,
     });
   }
 
@@ -522,7 +677,60 @@ class MatchRepository {
     return {
       'name': rows.first['name'] as String,
       'phone': rows.first['phone'] as String,
+      if (rows.first['deviceId'] != null) 'deviceId': rows.first['deviceId'] as String,
     };
+  }
+
+  // ── Match Fees & Expenses ──────────────────────────────────────────────
+
+  Future<void> initializeMatchFees(String matchId, double amountDue) async {
+    final players = await getAllPlayersForMatch(matchId);
+    final now = DateTime.now().toIso8601String();
+
+    await _db.runInTransaction((txn) async {
+      for (final p in players) {
+        final fee = MatchFee(
+          id: _uuid.v4(),
+          matchId: matchId,
+          playerId: p.id,
+          amountDue: amountDue,
+          amountPaid: 0.0,
+          status: 'pending',
+          updatedAt: now,
+        );
+        await txn.insert('match_fees', fee.toMap());
+      }
+    });
+  }
+
+  Future<List<MatchFee>> getMatchFees(String matchId) async {
+    final rows = await _db.query('match_fees', where: 'matchId = ?', whereArgs: [matchId]);
+    return rows.map((r) => MatchFee.fromMap(r)).toList();
+  }
+
+  Future<void> updateMatchFee(MatchFee fee) async {
+    final updatedFee = fee.copyWith(updatedAt: DateTime.now().toIso8601String());
+    await _db.update('match_fees', updatedFee.toMap(), where: 'id = ?', whereArgs: [fee.id]);
+  }
+
+  Future<MatchExpense> addMatchExpense(String matchId, String description, double amount) async {
+    final expense = MatchExpense(
+      id: _uuid.v4(),
+      matchId: matchId,
+      description: description,
+      amount: amount,
+    );
+    await _db.insert('match_expenses', expense.toMap());
+    return expense;
+  }
+
+  Future<List<MatchExpense>> getMatchExpenses(String matchId) async {
+    final rows = await _db.query('match_expenses', where: 'matchId = ?', whereArgs: [matchId]);
+    return rows.map((r) => MatchExpense.fromMap(r)).toList();
+  }
+
+  Future<void> deleteMatchExpense(String id) async {
+    await _db.delete('match_expenses', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> clearAllData() async {

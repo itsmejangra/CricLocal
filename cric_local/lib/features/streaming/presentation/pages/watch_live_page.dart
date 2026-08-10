@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:cric_local/core/services/sync_service.dart';
+import 'package:cric_local/app/di.dart';
 
 class WatchLivePage extends StatefulWidget {
   final String matchId;
@@ -20,6 +23,8 @@ class WatchLivePage extends StatefulWidget {
 class _WatchLivePageState extends State<WatchLivePage> {
   YoutubePlayerController? _controller;
   final _videoIdController = TextEditingController();
+  Timer? _pollingTimer;
+  bool _isPolling = false;
 
   @override
   void initState() {
@@ -27,7 +32,31 @@ class _WatchLivePageState extends State<WatchLivePage> {
     // If a video ID is passed (from the backend), initialize the player immediately.
     if (widget.youtubeVideoId != null && widget.youtubeVideoId!.isNotEmpty) {
       _initPlayer(widget.youtubeVideoId!);
+    } else {
+      _startPolling();
     }
+  }
+
+  void _startPolling() {
+    _pollingTimer?.cancel();
+    setState(() => _isPolling = true);
+    _pollingTimer = Timer.periodic(const Duration(seconds: 8), (timer) async {
+      try {
+        final syncService = getIt<SyncService>();
+        final matchData = await syncService.getLiveMatchData(widget.matchId);
+        if (matchData != null &&
+            matchData.match.youtubeVideoId != null &&
+            matchData.match.youtubeVideoId!.isNotEmpty) {
+          _pollingTimer?.cancel();
+          if (mounted) {
+            setState(() => _isPolling = false);
+            _initPlayer(matchData.match.youtubeVideoId!);
+          }
+        }
+      } catch (e) {
+        print('Error polling live stream info: $e');
+      }
+    });
   }
 
   void _initPlayer(String videoId) {
@@ -45,6 +74,7 @@ class _WatchLivePageState extends State<WatchLivePage> {
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _videoIdController.dispose();
     _controller?.dispose();
     super.dispose();
@@ -73,12 +103,9 @@ class _WatchLivePageState extends State<WatchLivePage> {
                     playedColor: Colors.red,
                     handleColor: Colors.redAccent,
                   ),
-                  onReady: () {
-                    // Player is ready
-                  },
                 ),
               )
-            : _buildVideoIdInput(),
+            : (_isPolling ? _buildWaitingScreen() : _buildVideoIdInput()),
       ),
     );
   }
@@ -123,6 +150,36 @@ class _WatchLivePageState extends State<WatchLivePage> {
                 }
               },
               child: const Text('WATCH LIVE', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWaitingScreen() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Colors.red),
+            const SizedBox(height: 24),
+            const Text(
+              'Waiting for broadcaster to start live stream...',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+            const SizedBox(height: 32),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _isPolling = false;
+                  _pollingTimer?.cancel();
+                });
+              },
+              child: const Text('Enter Video ID Manually', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
             ),
           ],
         ),

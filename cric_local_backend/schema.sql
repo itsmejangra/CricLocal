@@ -15,7 +15,9 @@ CREATE TABLE IF NOT EXISTS matches (
   winnerTeam TEXT,
   resultSummary TEXT,
   createdAt TEXT NOT NULL,
-  updatedAt TEXT NOT NULL
+  updatedAt TEXT NOT NULL,
+  creatorId TEXT,
+  youtubeVideoId TEXT
 );
 
 -- Players table
@@ -119,7 +121,8 @@ CREATE TABLE IF NOT EXISTS saved_teams (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   createdAt TEXT NOT NULL,
-  updatedAt TEXT NOT NULL
+  updatedAt TEXT NOT NULL,
+  creatorId TEXT
 );
 
 -- Saved Team Players table

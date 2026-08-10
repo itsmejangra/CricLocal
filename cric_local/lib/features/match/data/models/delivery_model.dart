@@ -88,6 +88,7 @@ class DeliveryModel extends Equatable {
   );
 
   String get displayString {
+    if (dismissalType == DismissalType.retired) return 'Ret';
     if (isWicket) return totalRuns > 0 ? 'W+$totalRuns' : 'W';
     if (isWide) return totalRuns > 1 ? 'wd+${totalRuns - 1}' : 'wd';
     if (isNoBall) return runsScored > 0 ? 'nb+$runsScored' : 'nb';

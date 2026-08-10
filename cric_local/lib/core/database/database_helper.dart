@@ -8,6 +8,7 @@ import '../constants.dart';
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
+  static String? overrideDbPath;
 
   DatabaseHelper._internal();
 
@@ -20,8 +21,7 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, AppConstants.dbName);
+    final path = overrideDbPath ?? join(await getDatabasesPath(), AppConstants.dbName);
 
     final db = await openDatabase(
       path,
@@ -52,7 +52,9 @@ class DatabaseHelper {
         resultSummary TEXT,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
-        isSynced INTEGER NOT NULL DEFAULT 0
+        isSynced INTEGER NOT NULL DEFAULT 0,
+        creatorId TEXT,
+        youtubeVideoId TEXT
       )
     ''');
 
@@ -196,6 +198,7 @@ class DatabaseHelper {
         teamId TEXT NOT NULL,
         name TEXT NOT NULL,
         orderIndex INTEGER NOT NULL,
+        isCaptain INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (teamId) REFERENCES saved_teams (id) ON DELETE CASCADE
       )
     ''');
@@ -205,7 +208,34 @@ class DatabaseHelper {
       CREATE TABLE user_profile (
         id INTEGER PRIMARY KEY DEFAULT 1,
         name TEXT NOT NULL,
-        phone TEXT
+        phone TEXT,
+        deviceId TEXT
+      )
+    ''');
+
+    // ── Match Fees table ──────────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE match_fees (
+        id TEXT PRIMARY KEY,
+        matchId TEXT NOT NULL,
+        playerId TEXT NOT NULL,
+        amountDue REAL NOT NULL DEFAULT 0.0,
+        amountPaid REAL NOT NULL DEFAULT 0.0,
+        status TEXT NOT NULL DEFAULT 'pending',
+        updatedAt TEXT NOT NULL,
+        FOREIGN KEY (matchId) REFERENCES matches (id) ON DELETE CASCADE,
+        FOREIGN KEY (playerId) REFERENCES players (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // ── Match Expenses table ──────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE match_expenses (
+        id TEXT PRIMARY KEY,
+        matchId TEXT NOT NULL,
+        description TEXT NOT NULL,
+        amount REAL NOT NULL DEFAULT 0.0,
+        FOREIGN KEY (matchId) REFERENCES matches (id) ON DELETE CASCADE
       )
     ''');
 
@@ -217,6 +247,7 @@ class DatabaseHelper {
     await db.execute('CREATE INDEX idx_batsman_innings ON batsman_innings (inningsId)');
     await db.execute('CREATE INDEX idx_bowler_innings ON bowler_innings (inningsId)');
     await db.execute('CREATE INDEX idx_saved_team_players ON saved_team_players (teamId)');
+    await db.execute('CREATE INDEX idx_match_fees ON match_fees (matchId)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -255,13 +286,53 @@ class DatabaseHelper {
         )
       ''');
     }
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE saved_team_players ADD COLUMN isCaptain INTEGER NOT NULL DEFAULT 0');
+    }
+    if (oldVersion < 6) {
+      await db.execute('''
+        CREATE TABLE match_fees (
+          id TEXT PRIMARY KEY,
+          matchId TEXT NOT NULL,
+          playerId TEXT NOT NULL,
+          amountDue REAL NOT NULL DEFAULT 0.0,
+          amountPaid REAL NOT NULL DEFAULT 0.0,
+          status TEXT NOT NULL DEFAULT 'pending',
+          updatedAt TEXT NOT NULL,
+          FOREIGN KEY (matchId) REFERENCES matches (id) ON DELETE CASCADE,
+          FOREIGN KEY (playerId) REFERENCES players (id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE match_expenses (
+          id TEXT PRIMARY KEY,
+          matchId TEXT NOT NULL,
+          description TEXT NOT NULL,
+          amount REAL NOT NULL DEFAULT 0.0,
+          FOREIGN KEY (matchId) REFERENCES matches (id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_match_fees ON match_fees (matchId)');
+    }
+    if (oldVersion < 7) {
+      await db.execute('ALTER TABLE matches ADD COLUMN creatorId TEXT');
+      await db.execute('ALTER TABLE user_profile ADD COLUMN deviceId TEXT');
+    }
+    if (oldVersion < 8) {
+      await db.execute('ALTER TABLE matches ADD COLUMN youtubeVideoId TEXT');
+    }
   }
 
   // ── Generic CRUD helpers ───────────────────────────────────────────────
 
   Future<int> insert(String table, Map<String, dynamic> data) async {
-    final db = await database;
-    return await db.insert(table, data, conflictAlgorithm: ConflictAlgorithm.replace);
+    try {
+      final db = await database;
+      return await db.insert(table, data, conflictAlgorithm: ConflictAlgorithm.replace);
+    } catch (e) {
+      print('Database insert error: $e');
+      return 0;
+    }
   }
 
   Future<List<Map<String, dynamic>>> query(
@@ -271,14 +342,19 @@ class DatabaseHelper {
     String? orderBy,
     int? limit,
   }) async {
-    final db = await database;
-    return await db.query(
-      table,
-      where: where,
-      whereArgs: whereArgs,
-      orderBy: orderBy,
-      limit: limit,
-    );
+    try {
+      final db = await database;
+      return await db.query(
+        table,
+        where: where,
+        whereArgs: whereArgs,
+        orderBy: orderBy,
+        limit: limit,
+      );
+    } catch (e) {
+      print('Database query error: $e');
+      return [];
+    }
   }
 
   Future<int> update(
@@ -287,8 +363,13 @@ class DatabaseHelper {
     String? where,
     List<dynamic>? whereArgs,
   }) async {
-    final db = await database;
-    return await db.update(table, data, where: where, whereArgs: whereArgs);
+    try {
+      final db = await database;
+      return await db.update(table, data, where: where, whereArgs: whereArgs);
+    } catch (e) {
+      print('Database update error: $e');
+      return 0;
+    }
   }
 
   Future<int> delete(
@@ -296,8 +377,13 @@ class DatabaseHelper {
     String? where,
     List<dynamic>? whereArgs,
   }) async {
-    final db = await database;
-    return await db.delete(table, where: where, whereArgs: whereArgs);
+    try {
+      final db = await database;
+      return await db.delete(table, where: where, whereArgs: whereArgs);
+    } catch (e) {
+      print('Database delete error: $e');
+      return 0;
+    }
   }
 
   Future<T> runInTransaction<T>(Future<T> Function(Transaction txn) action) async {
@@ -306,8 +392,13 @@ class DatabaseHelper {
   }
 
   Future<List<Map<String, dynamic>>> rawQuery(String sql, [List<dynamic>? args]) async {
-    final db = await database;
-    return await db.rawQuery(sql, args);
+    try {
+      final db = await database;
+      return await db.rawQuery(sql, args);
+    } catch (e) {
+      print('Database rawQuery error: $e');
+      return [];
+    }
   }
 
   Future<void> clearAll() async {
@@ -319,6 +410,8 @@ class DatabaseHelper {
       await txn.delete('deliveries');
       await txn.delete('batsman_innings');
       await txn.delete('bowler_innings');
+      await txn.delete('match_fees');
+      await txn.delete('match_expenses');
     });
   }
 

@@ -3,8 +3,47 @@ import '../../../../app/theme.dart';
 import '../../../../core/services/sync_service.dart';
 import '../../../../app/di.dart';
 
-class AwardsPage extends StatelessWidget {
+class AwardsPage extends StatefulWidget {
   const AwardsPage({super.key});
+
+  @override
+  State<AwardsPage> createState() => _AwardsPageState();
+}
+
+class _AwardsPageState extends State<AwardsPage> {
+  Map<String, dynamic>? _data;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAwards();
+  }
+
+  Future<void> _loadAwards() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = await getIt<SyncService>().getLeaderboards();
+      if (mounted) {
+        setState(() {
+          _data = result;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading awards: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Failed to load awards. Please try again.';
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,65 +51,96 @@ class AwardsPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('CricLocal Awards'),
       ),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: getIt<SyncService>().getLeaderboards(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          final data = snapshot.data ?? {};
-          final batters = (data['batters'] as List? ?? []).take(3).toList();
-          final bowlers = (data['bowlers'] as List? ?? []).take(3).toList();
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.cloud_off, size: 64, color: Colors.grey[300]),
+                        const SizedBox(height: 16),
+                        Text(_error!, style: AppTheme.bodyLarge.copyWith(color: Colors.grey), textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _loadAwards,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : _buildContent(),
+    );
+  }
 
-          return Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppTheme.primaryBlue.withValues(alpha: 0.05),
-                  Colors.white,
-                ],
+  Widget _buildContent() {
+    final data = _data ?? {};
+    final batters = (data['batters'] as List? ?? []).take(3).toList();
+    final bowlers = (data['bowlers'] as List? ?? []).take(3).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppTheme.primaryBlue.withValues(alpha: 0.05),
+            Colors.white,
+          ],
+        ),
+      ),
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          _buildHonorRollHeader(),
+          const SizedBox(height: 32),
+          if (batters.isNotEmpty) ...[
+            _buildAwardSection(
+              title: 'Golden Bat Awards',
+              subtitle: 'Top Run Scorers of the Season',
+              icon: Icons.workspace_premium,
+              color: Colors.amber,
+              players: batters,
+              statLabel: 'Runs',
+              statKey: 'totalRuns',
+            ),
+            const SizedBox(height: 32),
+          ],
+          if (bowlers.isNotEmpty) ...[
+            _buildAwardSection(
+              title: 'Purple Cap Honors',
+              subtitle: 'Leading Wicket Takers',
+              icon: Icons.military_tech,
+              color: Colors.deepPurple,
+              players: bowlers,
+              statLabel: 'Wickets',
+              statKey: 'totalWickets',
+            ),
+          ],
+          if (batters.isEmpty && bowlers.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Icon(Icons.emoji_events_outlined, size: 64, color: Colors.grey[300]),
+                    const SizedBox(height: 16),
+                    Text('No awards data available yet', style: AppTheme.bodyLarge.copyWith(color: Colors.grey)),
+                  ],
+                ),
               ),
             ),
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                _buildHonorRollHeader(),
-                const SizedBox(height: 32),
-                if (batters.isNotEmpty) ...[
-                  _buildAwardSection(
-                    title: 'Golden Bat Awards',
-                    subtitle: 'Top Run Scorers of the Season',
-                    icon: Icons.workspace_premium,
-                    color: Colors.amber,
-                    players: batters,
-                    statLabel: 'Runs',
-                    statKey: 'totalRuns',
-                  ),
-                  const SizedBox(height: 32),
-                ],
-                if (bowlers.isNotEmpty) ...[
-                  _buildAwardSection(
-                    title: 'Purple Cap Honors',
-                    subtitle: 'Leading Wicket Takers',
-                    icon: Icons.military_tech,
-                    color: Colors.deepPurple,
-                    players: bowlers,
-                    statLabel: 'Wickets',
-                    statKey: 'totalWickets',
-                  ),
-                ],
-                const SizedBox(height: 40),
-                _buildComingSoonBanner(),
-              ],
-            ),
-          );
-        },
+          const SizedBox(height: 40),
+          _buildComingSoonBanner(),
+        ],
       ),
     );
   }
+
 
   Widget _buildHonorRollHeader() {
     return Container(
@@ -172,7 +242,7 @@ class AwardsPage extends StatelessWidget {
                   style: AppTheme.titleMedium.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  player['team_name'] ?? 'Local Team',
+                  player['teamName'] ?? 'Local Team',
                   style: AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary),
                 ),
               ],

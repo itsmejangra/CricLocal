@@ -1,0 +1,6 @@
+.env
+.wrangler/
+node_modules/
+dist/
+build/
+*.log

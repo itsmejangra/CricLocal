@@ -3,6 +3,8 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:haishin_kit/haishin_kit.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:cric_local/features/match/data/repositories/match_repository.dart';
+import 'package:cric_local/app/di.dart';
 
 class GoLivePage extends StatefulWidget {
   final String matchId;
@@ -16,6 +18,7 @@ class GoLivePage extends StatefulWidget {
 
 class _GoLivePageState extends State<GoLivePage> {
   final _streamKeyController = TextEditingController();
+  final _videoIdController = TextEditingController();
   MediaMixer? _mixer;
   StreamSession? _session;
   VideoSource? _mainVideoSource;
@@ -70,6 +73,7 @@ class _GoLivePageState extends State<GoLivePage> {
   @override
   void dispose() {
     _streamKeyController.dispose();
+    _videoIdController.dispose();
     _session?.close();
     _session?.dispose();
     _mixer?.dispose();
@@ -84,14 +88,26 @@ class _GoLivePageState extends State<GoLivePage> {
     }
 
     final key = _streamKeyController.text.trim();
+    final videoId = _videoIdController.text.trim();
     if (key.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a YouTube Stream Key')));
+      return;
+    }
+    if (videoId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a YouTube Video ID')));
       return;
     }
 
     setState(() => _isConnecting = true);
 
     try {
+      final syncSuccess = await getIt<MatchRepository>().updateMatchYoutubeVideoId(widget.matchId, videoId);
+      if (!syncSuccess && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Warning: Failed to sync YouTube Video ID with viewers.')),
+        );
+      }
+
       final url = 'rtmp://a.rtmp.youtube.com/live2/$key';
       
       // Recreate session with actual URL
@@ -171,6 +187,17 @@ class _GoLivePageState extends State<GoLivePage> {
                         focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
                       ),
                       obscureText: true,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _videoIdController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'YouTube Video ID (e.g. dQw4w9WgXcQ)',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white30)),
+                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(

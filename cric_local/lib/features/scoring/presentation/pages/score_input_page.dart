@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../../streaming/presentation/pages/go_live_page.dart';
 import '../../../../app/di.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/enums.dart';
 import '../../../match/data/models/models.dart';
+import '../../../match/data/repositories/match_repository.dart';
 
 import '../../../match/presentation/bloc/scoring_bloc.dart';
 import '../../../match/presentation/bloc/scoring_event_state.dart';
@@ -36,6 +36,7 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
   void initState() {
     super.initState();
     _bloc = getIt<ScoringBloc>()..add(LoadMatch(widget.matchId));
+    getIt<MatchRepository>().syncFullMatchState(widget.matchId);
   }
 
   @override
@@ -81,32 +82,14 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
             title: const Text('Live Scoring'),
             leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
             actions: [
-              if (!kIsWeb)
-                IconButton(
-                  icon: const Icon(Icons.videocam, color: Colors.redAccent),
-                  tooltip: 'Go Live',
-                  onPressed: () {
-                    final title = state is ScoringActive
-                        ? '${state.match.team1Name} vs ${state.match.team2Name}'
-                        : 'Live Match';
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => GoLivePage(
-                          matchId: widget.matchId,
-                          matchTitle: title,
-                        ),
-                      ),
-                    );
-                  },
-                ),
               IconButton(
                 icon: const Icon(Icons.share_arrival_time_outlined), 
                 tooltip: 'Share Match ID',
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: widget.matchId));
+                  getIt<MatchRepository>().syncFullMatchState(widget.matchId);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Match ID copied to clipboard! Share it with viewers.')),
+                    const SnackBar(content: Text('Match ID copied and synced to cloud! Share it with viewers.')),
                   );
                 },
               ),
@@ -363,7 +346,8 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
 
   Widget _ballChip(DeliveryModel ball) {
     Color bg = AppTheme.backgroundGray; Color fg = AppTheme.textPrimary;
-    if (ball.isWicket) { bg = AppTheme.wicketRed; fg = Colors.white; }
+    if (ball.dismissalType == DismissalType.retired) { bg = Colors.blue.shade100; fg = Colors.blue.shade900; }
+    else if (ball.isWicket) { bg = AppTheme.wicketRed; fg = Colors.white; }
     else if (ball.runsScored == 4) { bg = AppTheme.fourColor; fg = Colors.white; }
     else if (ball.runsScored == 6) { bg = AppTheme.sixColor; fg = Colors.white; }
     else if (ball.isWide || ball.isNoBall) { bg = Colors.amber.shade100; fg = Colors.brown; }
@@ -484,7 +468,20 @@ class _ScoreInputPageState extends State<ScoreInputPage> with SingleTickerProvid
     final prev = state.previousState;
     final battedIds = prev.batsmanStats.map((b) => b.playerId).toSet();
     battedIds.add(state.dismissedPlayerId);
-    final available = prev.allPlayers.where((p) => p.teamName == prev.innings.battingTeam && !battedIds.contains(p.id)).toList();
+    
+    // Players who are currently marked as retired
+    final retiredPlayerIds = prev.batsmanStats
+        .where((b) => b.isOut && b.dismissalType == DismissalType.retired.name)
+        .map((b) => b.playerId)
+        .toSet();
+    
+    // The player who just retired cannot be immediately selected to return
+    retiredPlayerIds.remove(state.dismissedPlayerId);
+
+    final available = prev.allPlayers.where((p) => 
+        p.teamName == prev.innings.battingTeam && 
+        (!battedIds.contains(p.id) || retiredPlayerIds.contains(p.id))
+    ).toList();
     if (available.isEmpty) return;
     showDialog(context: ctx, barrierDismissible: false, builder: (_) => AlertDialog(
       title: const Text('Select New Batsman'), content: SizedBox(width: 300,

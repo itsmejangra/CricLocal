@@ -311,6 +311,101 @@ class _CommentaryTabState extends State<CommentaryTab> {
     }
   }
 
+  /// Build a flat list of widgets with innings headers + deliveries for use in a single ListView.
+  List<Widget> _buildInningsSections() {
+    // Group deliveries by innings, preserving innings order
+    // Sort innings by inningsNumber descending (most recent innings first)
+    final sortedInnings = List<InningsModel>.from(_innings)
+      ..sort((a, b) => b.inningsNumber.compareTo(a.inningsNumber));
+
+    final List<Widget> items = [];
+
+    for (final inn in sortedInnings) {
+      final inningsDeliveries = _allDeliveries
+          .where((d) => d.inningsId == inn.id)
+          .toList()
+        // Newest first within each innings
+        ..sort((a, b) {
+          if (a.overNumber != b.overNumber) return b.overNumber.compareTo(a.overNumber);
+          return b.ballNumber.compareTo(a.ballNumber);
+        });
+
+      if (inningsDeliveries.isEmpty) continue;
+
+      // ── Innings Section Header ──
+      items.add(
+        Container(
+          width: double.infinity,
+          margin: items.isEmpty ? EdgeInsets.zero : const EdgeInsets.only(top: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppTheme.primaryRed.withValues(alpha: 0.08), AppTheme.primaryRed.withValues(alpha: 0.02)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            border: Border(
+              left: BorderSide(color: AppTheme.primaryRed, width: 4),
+              bottom: BorderSide(color: AppTheme.primaryRed.withValues(alpha: 0.15), width: 1),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      inn.battingTeam,
+                      style: AppTheme.bodyMedium.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Innings ${inn.inningsNumber}',
+                      style: AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  inn.fullScoreDisplay,
+                  style: AppTheme.bodyMedium.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryRed,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // ── Deliveries for this innings ──
+      for (int i = 0; i < inningsDeliveries.length; i++) {
+        if (i > 0) {
+          items.add(const Divider(height: 24));
+        }
+        items.add(Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _buildCommentaryItem(inningsDeliveries[i]),
+        ));
+      }
+    }
+
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -321,8 +416,7 @@ class _CommentaryTabState extends State<CommentaryTab> {
       return const Center(child: Text('No commentary available yet.'));
     }
 
-    // Show newest first for active scrolling feedback (standard cricket presentation)
-    final reversedBalls = _allDeliveries.reversed.toList();
+    final sectionWidgets = _buildInningsSections();
 
     return Column(
       children: [
@@ -358,16 +452,12 @@ class _CommentaryTabState extends State<CommentaryTab> {
           ),
         ),
         const Divider(height: 1),
-        // Commentary ball-by-ball list
+        // Commentary ball-by-ball list grouped by innings
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: reversedBalls.length,
-            separatorBuilder: (ctx, i) => const Divider(height: 24),
-            itemBuilder: (ctx, i) {
-              final ball = reversedBalls[i];
-              return _buildCommentaryItem(ball);
-            },
+          child: ListView.builder(
+            padding: const EdgeInsets.only(top: 0, bottom: 16),
+            itemCount: sectionWidgets.length,
+            itemBuilder: (ctx, i) => sectionWidgets[i],
           ),
         ),
       ],

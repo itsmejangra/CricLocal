@@ -224,11 +224,13 @@ class SyncService {
 
   Future<List<MatchModel>> getAllLiveMatches() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/matches'));
+      final response = await http.get(Uri.parse('$baseUrl/matches'))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((m) => MatchModel.fromMap(m)).toList();
       }
+      print('Get all live matches: status ${response.statusCode}');
     } catch (e) {
       print('Get all live matches error: $e');
     }
@@ -273,14 +275,48 @@ class SyncService {
 
   Future<Map<String, dynamic>> getLeaderboards() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/leaderboards'));
+      final response = await http.get(Uri.parse('$baseUrl/leaderboards'))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
+      print('Get leaderboards: status ${response.statusCode}');
     } catch (e) {
       print('Error fetching leaderboards: $e');
     }
     return {'batters': [], 'bowlers': [], 'allRounders': []};
+  }
+
+  Future<List<Map<String, dynamic>>> getPlayerBattingRankings({String? creatorId}) async {
+    try {
+      final uri = Uri.parse('$baseUrl/player-rankings/batting')
+          .replace(queryParameters: creatorId != null ? {'creatorId': creatorId} : null);
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.cast<Map<String, dynamic>>();
+      }
+      print('Get batting rankings: status ${response.statusCode}');
+    } catch (e) {
+      print('Error fetching batting rankings: $e');
+    }
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getPlayerBowlingRankings({String? creatorId}) async {
+    try {
+      final uri = Uri.parse('$baseUrl/player-rankings/bowling')
+          .replace(queryParameters: creatorId != null ? {'creatorId': creatorId} : null);
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.cast<Map<String, dynamic>>();
+      }
+      print('Get bowling rankings: status ${response.statusCode}');
+    } catch (e) {
+      print('Error fetching bowling rankings: $e');
+    }
+    return [];
   }
 
   Future<bool> sendFeedback(String email, String message) async {

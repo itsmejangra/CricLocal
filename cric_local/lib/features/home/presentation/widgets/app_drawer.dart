@@ -85,6 +85,10 @@ class AppDrawer extends StatelessWidget {
         Navigator.pop(context);
         context.push('/player/stats/Cricket%20Fan');
       }),
+      _buildMenuItem(Icons.compare_arrows, 'Head to Head', context, badge: 'New', onTap: () {
+        Navigator.pop(context);
+        context.push('/head-to-head');
+      }),
       _buildMenuItem(Icons.people_outline, 'My Teams', context, onTap: () {
         Navigator.pop(context);
         context.push('/teams');
@@ -93,6 +97,10 @@ class AppDrawer extends StatelessWidget {
       _buildMenuItem(Icons.leaderboard_outlined, 'Leaderboards', context, onTap: () {
         Navigator.pop(context);
         context.push('/leaderboards');
+      }),
+      _buildMenuItem(Icons.table_chart_outlined, 'Detailed Rankings', context, badge: 'New', onTap: () {
+        Navigator.pop(context);
+        context.push('/rankings');
       }),
       _buildMenuItem(Icons.military_tech_outlined, 'CricLocal Awards', context, onTap: () {
         Navigator.pop(context);

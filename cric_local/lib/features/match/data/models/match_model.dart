@@ -20,6 +20,8 @@ class MatchModel extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isSynced;
+  final String? creatorId;
+  final String? youtubeVideoId;
 
   const MatchModel({
     required this.id,
@@ -39,6 +41,8 @@ class MatchModel extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.isSynced = false,
+    this.creatorId,
+    this.youtubeVideoId,
   });
 
   Map<String, dynamic> toMap() {
@@ -60,6 +64,8 @@ class MatchModel extends Equatable {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'isSynced': isSynced ? 1 : 0,
+      'creatorId': creatorId,
+      'youtubeVideoId': youtubeVideoId,
     };
   }
 
@@ -93,6 +99,8 @@ class MatchModel extends Equatable {
       createdAt: DateTime.parse(map['createdAt'] as String),
       updatedAt: DateTime.parse(map['updatedAt'] as String),
       isSynced: (map['isSynced'] as int? ?? 0) == 1,
+      creatorId: map['creatorId'] as String?,
+      youtubeVideoId: map['youtubeVideoId'] as String?,
     );
   }
 
@@ -114,6 +122,8 @@ class MatchModel extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isSynced,
+    String? creatorId,
+    String? youtubeVideoId,
   }) {
     return MatchModel(
       id: id ?? this.id,
@@ -133,6 +143,8 @@ class MatchModel extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,
+      creatorId: creatorId ?? this.creatorId,
+      youtubeVideoId: youtubeVideoId ?? this.youtubeVideoId,
     );
   }
 
@@ -143,5 +155,5 @@ class MatchModel extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, title, status, updatedAt];
+  List<Object?> get props => [id, title, status, updatedAt, creatorId, youtubeVideoId];
 }

@@ -15,6 +15,7 @@ class _LeaderboardsPageState extends State<LeaderboardsPage> with SingleTickerPr
   late TabController _tabController;
   Map<String, dynamic>? _data;
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -23,18 +24,37 @@ class _LeaderboardsPageState extends State<LeaderboardsPage> with SingleTickerPr
     _loadLeaderboards();
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadLeaderboards() async {
-    final sync = getIt<SyncService>();
-    final result = await sync.getLeaderboards();
-    if (mounted) {
-      setState(() {
-        _data = result;
-        _loading = false;
-      });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final sync = getIt<SyncService>();
+      final result = await sync.getLeaderboards();
+      if (mounted) {
+        setState(() {
+          _data = result;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading leaderboards: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Failed to load leaderboards. Please try again.';
+        });
+      }
     }
   }
 
-  @override
   Widget _buildLeaderboardList(List<dynamic> items, String valueKey, String label) {
     if (items.isEmpty) {
       return Center(
@@ -119,6 +139,13 @@ class _LeaderboardsPageState extends State<LeaderboardsPage> with SingleTickerPr
     return Scaffold(
       appBar: AppBar(
         title: const Text('Global Leaderboards'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.table_chart_outlined),
+            tooltip: 'Detailed Rankings',
+            onPressed: () => context.push('/rankings'),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -135,14 +162,34 @@ class _LeaderboardsPageState extends State<LeaderboardsPage> with SingleTickerPr
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildLeaderboardList(_data?['batters'] ?? [], 'totalRuns', 'Runs'),
-                _buildLeaderboardList(_data?['bowlers'] ?? [], 'totalWickets', 'Wickets'),
-                _buildLeaderboardList(_data?['allRounders'] ?? [], 'points', 'Points'),
-              ],
-            ),
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.cloud_off, size: 64, color: Colors.grey[300]),
+                        const SizedBox(height: 16),
+                        Text(_error!, style: AppTheme.bodyLarge.copyWith(color: Colors.grey), textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _loadLeaderboards,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildLeaderboardList(_data?['batters'] ?? [], 'totalRuns', 'Runs'),
+                    _buildLeaderboardList(_data?['bowlers'] ?? [], 'totalWickets', 'Wickets'),
+                    _buildLeaderboardList(_data?['allRounders'] ?? [], 'points', 'Points'),
+                  ],
+                ),
     );
   }
 }

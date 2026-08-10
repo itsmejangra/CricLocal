@@ -6,8 +6,17 @@ import '../../../../core/enums.dart';
 class MatchCard extends StatelessWidget {
   final MatchModel match;
   final VoidCallback onTap;
+  final VoidCallback? onInsightsTap;
+  final VoidCallback? onSquadsTap;
   final VoidCallback? onDelete;
-  const MatchCard({super.key, required this.match, required this.onTap, this.onDelete});
+  const MatchCard({
+    super.key,
+    required this.match,
+    required this.onTap,
+    this.onInsightsTap,
+    this.onSquadsTap,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +62,12 @@ class MatchCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(color: AppTheme.liveBadge, borderRadius: BorderRadius.circular(AppTheme.chipRadius)),
                 child: Text('Live', style: AppTheme.bodySmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+              )
+            else if (match.status == MatchStatus.abandoned)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(AppTheme.chipRadius)),
+                child: Text('Abandoned', style: AppTheme.bodySmall.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
               ),
           ]),
           if (match.venue != null) ...[
@@ -87,9 +102,15 @@ class MatchCard extends StatelessWidget {
           const Spacer(),
           // Action links
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            TextButton(onPressed: onTap, child: Text('Insights', style: AppTheme.labelLarge.copyWith(fontSize: 13))),
+            TextButton(
+              onPressed: onInsightsTap ?? onTap,
+              child: Text('Insights', style: AppTheme.labelLarge.copyWith(fontSize: 13)),
+            ),
             const SizedBox(width: 16),
-            TextButton(onPressed: onTap, child: Text('Squads', style: AppTheme.labelLarge.copyWith(fontSize: 13))),
+            TextButton(
+              onPressed: onSquadsTap ?? onTap,
+              child: Text('Squads', style: AppTheme.labelLarge.copyWith(fontSize: 13)),
+            ),
           ]),
         ]),
       ),

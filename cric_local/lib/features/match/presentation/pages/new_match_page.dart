@@ -28,6 +28,8 @@ class _NewMatchPageState extends State<NewMatchPage> {
   int _step = 0;
   String? _selectedTeam1Id;
   String? _selectedTeam2Id;
+  int? _team1CaptainIdx;
+  int? _team2CaptainIdx;
 
   @override
   void dispose() {
@@ -237,11 +239,15 @@ class _NewMatchPageState extends State<NewMatchPage> {
                               if (teamNumber == 1) {
                                 _team1Ctrl.text = team.name;
                                 _selectedTeam1Id = team.id;
+                                _team1CaptainIdx = null;
                                 if (snapshot.hasData) {
                                   final players = snapshot.data!;
                                   for (int i = 0; i < _team1Players.length; i++) {
                                     if (i < players.length) {
                                       _team1Players[i].text = players[i].name;
+                                      if (players[i].isCaptain) {
+                                        _team1CaptainIdx = i;
+                                      }
                                     } else {
                                       _team1Players[i].clear();
                                     }
@@ -250,11 +256,15 @@ class _NewMatchPageState extends State<NewMatchPage> {
                               } else {
                                 _team2Ctrl.text = team.name;
                                 _selectedTeam2Id = team.id;
+                                _team2CaptainIdx = null;
                                 if (snapshot.hasData) {
                                   final players = snapshot.data!;
                                   for (int i = 0; i < _team2Players.length; i++) {
                                     if (i < players.length) {
                                       _team2Players[i].text = players[i].name;
+                                      if (players[i].isCaptain) {
+                                        _team2CaptainIdx = i;
+                                      }
                                     } else {
                                       _team2Players[i].clear();
                                     }
@@ -311,9 +321,9 @@ class _NewMatchPageState extends State<NewMatchPage> {
       final count = (int.tryParse(_playersCtrl.text) ?? 11).clamp(2, 11);
       for (int i = 0; i < count; i++) {
         final t1Name = _team1Players[i].text.trim().isNotEmpty ? _team1Players[i].text.trim() : 'Player ${i + 1}';
-        await repo.addPlayer(name: t1Name, teamName: _team1Ctrl.text, matchId: match.id, battingOrder: i + 1);
+        await repo.addPlayer(name: t1Name, teamName: _team1Ctrl.text, matchId: match.id, battingOrder: i + 1, isCaptain: _team1CaptainIdx == i);
         final t2Name = _team2Players[i].text.trim().isNotEmpty ? _team2Players[i].text.trim() : 'Player ${i + 1}';
-        await repo.addPlayer(name: t2Name, teamName: _team2Ctrl.text, matchId: match.id, battingOrder: i + 1);
+        await repo.addPlayer(name: t2Name, teamName: _team2Ctrl.text, matchId: match.id, battingOrder: i + 1, isCaptain: _team2CaptainIdx == i);
       }
       if (mounted) context.go('/match/${match.id}');
     } catch (e) {

@@ -94,6 +94,18 @@ class MatchResultPage extends StatelessWidget {
             
             // Actions
             ElevatedButton.icon(
+              icon: const Icon(Icons.payments, color: Colors.white, size: 20),
+              label: const Text('MANAGE MATCH FEES', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+              onPressed: () => context.push('/match/${state.match.id}/fees'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentTeal,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
               icon: const Icon(Icons.share, color: Colors.white, size: 20),
               label: const Text('SHARE RESULT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.1)),
               onPressed: () => ShareService.shareMatchSummary(state.match, state.allScorecards),

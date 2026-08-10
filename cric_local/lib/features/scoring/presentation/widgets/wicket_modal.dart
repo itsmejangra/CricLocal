@@ -33,7 +33,7 @@ class _WicketModalState extends State<WicketModal> {
 
   bool get _needsFielder => [DismissalType.caught, DismissalType.runOut, DismissalType.stumped].contains(_type);
   bool get _needsTwoFielders => _type == DismissalType.runOut;
-  bool get _canSelectDismissed => _type == DismissalType.runOut;
+  bool get _canSelectDismissed => _type == DismissalType.runOut || _type == DismissalType.retired;
 
   @override
   Widget build(BuildContext context) {
@@ -51,10 +51,17 @@ class _WicketModalState extends State<WicketModal> {
         Wrap(spacing: 8, runSpacing: 8, children: DismissalType.values.map((t) =>
           ChoiceChip(label: Text(t.displayName), selected: _type == t,
             selectedColor: AppTheme.wicketRed.withValues(alpha: 0.2),
-            onSelected: (_) => setState(() { _type = t; _fielderId = null; _fielder2Id = null; }))).toList()),
+            onSelected: (_) => setState(() {
+              _type = t;
+              _fielderId = null;
+              _fielder2Id = null;
+              if (t == DismissalType.retired) {
+                _runsCompleted = 0;
+              }
+            }))).toList()),
         if (_canSelectDismissed) ...[
           const SizedBox(height: 16),
-          Text('Who is out?', style: AppTheme.titleMedium),
+          Text(_type == DismissalType.retired ? 'Who is retiring?' : 'Who is out?', style: AppTheme.titleMedium),
           const SizedBox(height: 8),
           Row(children: [
             if (widget.striker != null) Expanded(child: _selectChip(widget.striker!.name, _dismissedId == widget.striker!.id, () => setState(() => _dismissedId = widget.striker!.id))),
@@ -80,18 +87,20 @@ class _WicketModalState extends State<WicketModal> {
             items: _fieldingPlayers.where((p) => p.id != _fielderId).map((p) => DropdownMenuItem(value: p.id, child: Text(p.displayName))).toList(),
             onChanged: (v) => setState(() => _fielder2Id = v)),
         ],
-        const SizedBox(height: 16),
-        Text('Runs completed?', style: AppTheme.titleMedium),
-        const SizedBox(height: 8),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [0, 1, 2, 3].map((r) =>
-          ChoiceChip(label: Text('$r'), selected: _runsCompleted == r,
-            onSelected: (_) => setState(() => _runsCompleted = r))).toList()),
+        if (_type != DismissalType.retired) ...[
+          const SizedBox(height: 16),
+          Text('Runs completed?', style: AppTheme.titleMedium),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [0, 1, 2, 3].map((r) =>
+            ChoiceChip(label: Text('$r'), selected: _runsCompleted == r,
+              onSelected: (_) => setState(() => _runsCompleted = r))).toList()),
+        ],
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: () { Navigator.pop(context);
             widget.onConfirm(_type, _fielderId, _fielder2Id, _dismissedId ?? widget.striker?.id, _runsCompleted); },
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.wicketRed, padding: const EdgeInsets.symmetric(vertical: 14)),
-          child: const Text('Confirm Wicket', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600)),
+          child: Text(_type == DismissalType.retired ? 'Confirm Retirement' : 'Confirm Wicket', style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600)),
         ),
         const SizedBox(height: 8),
       ]),

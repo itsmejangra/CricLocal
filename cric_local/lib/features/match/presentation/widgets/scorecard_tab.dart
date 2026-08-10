@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/enums.dart';
 import '../../data/models/models.dart';
 import '../bloc/scoring_event_state.dart';
 
@@ -305,6 +306,7 @@ class ScorecardTab extends StatelessWidget {
               data: scorecard,
               players: players,
               isExpanded: index == allScorecards.length - 1,
+              creatorId: match?.creatorId,
             );
           },
         );
@@ -334,7 +336,7 @@ class ScorecardTab extends StatelessWidget {
                   icon: const Icon(Icons.picture_as_pdf, size: 16, color: Colors.white),
                   label: const Text('Export PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryRed,
+                     backgroundColor: AppTheme.primaryRed,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     elevation: 2,
@@ -357,11 +359,13 @@ class _InningsScorecard extends StatelessWidget {
   final ScorecardData data;
   final List<PlayerModel> players;
   final bool isExpanded;
+  final String? creatorId;
 
   const _InningsScorecard({
     required this.data,
     required this.players,
     this.isExpanded = false,
+    this.creatorId,
   });
 
   @override
@@ -419,7 +423,7 @@ class _InningsScorecard extends StatelessWidget {
         ),
         ...data.batsmanStats.map((bi) {
           final player = players.where((p) => p.id == bi.playerId).firstOrNull;
-          return _BatsmanRow(player: player, stat: bi);
+          return _BatsmanRow(player: player, stat: bi, creatorId: creatorId);
         }),
       ],
     );
@@ -513,29 +517,31 @@ class _InningsScorecard extends StatelessWidget {
         ),
         ...data.bowlerStats.map((bs) {
           final player = players.where((p) => p.id == bs.playerId).firstOrNull;
-          return _BowlerRow(player: player, stat: bs);
+          return _BowlerRow(player: player, stat: bs, creatorId: creatorId);
         }),
       ],
     );
   }
 
   Widget _buildFallOfWickets() {
-    final wicketDeliveries = data.deliveries.where((d) => d.isWicket).toList();
+    final wicketDeliveries = data.deliveries.where((d) => d.isWicket && d.dismissalType != DismissalType.retired).toList();
     final entries = <String>[];
 
     if (wicketDeliveries.isNotEmpty) {
       var runningScore = 0;
+      int wicketNum = 0;
       for (final delivery in data.deliveries) {
         runningScore += delivery.totalRuns;
-        if (delivery.isWicket) {
+        if (delivery.isWicket && delivery.dismissalType != DismissalType.retired) {
           final player = players.where((p) => p.id == delivery.dismissedPlayerId).firstOrNull;
           final name = player?.displayName ?? 'Unknown';
           final over = '${delivery.overNumber}.${delivery.ballNumber}';
-          entries.add('${entries.length + 1}-$runningScore $name ($over ov)');
+          wicketNum++;
+          entries.add('$wicketNum-$runningScore $name ($over ov)');
         }
       }
     } else {
-      final dismissed = data.batsmanStats.where((b) => b.isOut).toList()
+      final dismissed = data.batsmanStats.where((b) => b.isOut && b.dismissalType != DismissalType.retired.name).toList()
         ..sort((a, b) => a.battingPosition.compareTo(b.battingPosition));
       for (final batsman in dismissed) {
         final player = players.where((p) => p.id == batsman.playerId).firstOrNull;
@@ -570,8 +576,9 @@ class _InningsScorecard extends StatelessWidget {
 class _BatsmanRow extends StatelessWidget {
   final PlayerModel? player;
   final BatsmanInningsModel stat;
+  final String? creatorId;
 
-  const _BatsmanRow({required this.player, required this.stat});
+  const _BatsmanRow({required this.player, required this.stat, this.creatorId});
 
   @override
   Widget build(BuildContext context) {
@@ -588,7 +595,7 @@ class _BatsmanRow extends StatelessWidget {
               Expanded(
                 flex: 4,
                 child: InkWell(
-                  onTap: player != null ? () => context.push('/player/stats/${Uri.encodeComponent(player!.name)}') : null,
+                  onTap: player != null ? () => context.push('/player/stats/${Uri.encodeComponent(player!.name)}${creatorId != null ? "?creatorId=$creatorId" : ""}') : null,
                   child: Text(
                     player?.displayName ?? 'Unknown',
                     style: AppTheme.bodyMedium.copyWith(
@@ -646,8 +653,9 @@ class _BatsmanRow extends StatelessWidget {
 class _BowlerRow extends StatelessWidget {
   final PlayerModel? player;
   final BowlerInningsModel stat;
+  final String? creatorId;
 
-  const _BowlerRow({required this.player, required this.stat});
+  const _BowlerRow({required this.player, required this.stat, this.creatorId});
 
   @override
   Widget build(BuildContext context) {
@@ -661,7 +669,7 @@ class _BowlerRow extends StatelessWidget {
           Expanded(
             flex: 4,
             child: InkWell(
-              onTap: player != null ? () => context.push('/player/stats/${Uri.encodeComponent(player!.name)}') : null,
+              onTap: player != null ? () => context.push('/player/stats/${Uri.encodeComponent(player!.name)}${creatorId != null ? "?creatorId=$creatorId" : ""}') : null,
               child: Text(
                 player?.displayName ?? 'Unknown',
                 style: AppTheme.bodyMedium.copyWith(

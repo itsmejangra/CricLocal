@@ -201,10 +201,14 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
     if (currentState is! ScoringActive) return;
     try {
       final innings = currentState.innings;
-      final isLegal = !event.isWide && !event.isNoBall;
+      final isRetired = event.dismissalType == DismissalType.retired;
+      final isLegal = !event.isWide && !event.isNoBall && !isRetired;
       int extraRuns = 0;
       int batsmanRuns = 0;
-      if (event.isWide) {
+      if (isRetired) {
+        extraRuns = 0;
+        batsmanRuns = 0;
+      } else if (event.isWide) {
         extraRuns = 1 + event.runs;
         batsmanRuns = 0;
       } else if (event.isNoBall) {
@@ -253,9 +257,10 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
       final int newPartnershipRuns = event.isWicket ? 0 : innings.partnershipRuns + totalRunsOnBall;
       final int newPartnershipBalls = event.isWicket ? 0 : (isLegal ? innings.partnershipBalls + 1 : innings.partnershipBalls);
 
+      final isWicketIncrement = event.isWicket && !isRetired;
       var updatedInnings = innings.copyWith(
         totalRuns: innings.totalRuns + totalRunsOnBall,
-        totalWickets: event.isWicket ? innings.totalWickets + 1 : innings.totalWickets,
+        totalWickets: isWicketIncrement ? innings.totalWickets + 1 : innings.totalWickets,
         totalOversCompleted: isOverComplete ? innings.totalOversCompleted + 1 : innings.totalOversCompleted,
         totalBallsInCurrentOver: isOverComplete ? 0 : newBallsInOver,
         totalExtras: innings.totalExtras + extraRuns,
@@ -268,40 +273,44 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
       );
 
       // Update batsman stats
-      final batInnings = await _repo.getBatsmanInnings(innings.id, currentState.striker.id);
-      if (batInnings != null && !event.isWide) {
-        await _repo.updateBatsmanInnings(batInnings.copyWith(
-          runs: batInnings.runs + batsmanRuns,
-          ballsFaced: batInnings.ballsFaced + (isLegal ? 1 : (event.isNoBall ? 1 : 0)),
-          fours: batsmanRuns == 4 ? batInnings.fours + 1 : batInnings.fours,
-          sixes: batsmanRuns == 6 ? batInnings.sixes + 1 : batInnings.sixes,
-        ));
+      if (!isRetired) {
+        final batInnings = await _repo.getBatsmanInnings(innings.id, currentState.striker.id);
+        if (batInnings != null && !event.isWide) {
+          await _repo.updateBatsmanInnings(batInnings.copyWith(
+            runs: batInnings.runs + batsmanRuns,
+            ballsFaced: batInnings.ballsFaced + (isLegal ? 1 : (event.isNoBall ? 1 : 0)),
+            fours: batsmanRuns == 4 ? batInnings.fours + 1 : batInnings.fours,
+            sixes: batsmanRuns == 6 ? batInnings.sixes + 1 : batInnings.sixes,
+          ));
+        }
       }
 
       // Update bowler stats
-      final bowlInnings = await _repo.getBowlerInnings(innings.id, currentState.bowler.id);
-      if (bowlInnings != null) {
-        final bowlerRuns = event.isBye || event.isLegBye ? 0 : totalRunsOnBall;
-        
-        int newMaidens = bowlInnings.maidens;
-        if (isOverComplete) {
-          final overDeliveries = await _repo.getDeliveriesForOver(innings.id, innings.totalOversCompleted);
-          int bowlerRunsInOver = 0;
-          for (var d in overDeliveries) {
-            if (!d.isBye && !d.isLegBye) bowlerRunsInOver += d.totalRuns;
+      if (!isRetired) {
+        final bowlInnings = await _repo.getBowlerInnings(innings.id, currentState.bowler.id);
+        if (bowlInnings != null) {
+          final bowlerRuns = event.isBye || event.isLegBye ? 0 : totalRunsOnBall;
+          
+          int newMaidens = bowlInnings.maidens;
+          if (isOverComplete) {
+            final overDeliveries = await _repo.getDeliveriesForOver(innings.id, innings.totalOversCompleted);
+            int bowlerRunsInOver = 0;
+            for (var d in overDeliveries) {
+              if (!d.isBye && !d.isLegBye) bowlerRunsInOver += d.totalRuns;
+            }
+            if (bowlerRunsInOver == 0) newMaidens += 1;
           }
-          if (bowlerRunsInOver == 0) newMaidens += 1;
-        }
 
-        await _repo.updateBowlerInnings(bowlInnings.copyWith(
-          runsConceded: bowlInnings.runsConceded + bowlerRuns,
-          wickets: event.isWicket ? bowlInnings.wickets + 1 : bowlInnings.wickets,
-          ballsBowled: isLegal ? bowlInnings.ballsBowled + 1 : bowlInnings.ballsBowled,
-          wides: event.isWide ? bowlInnings.wides + 1 : bowlInnings.wides,
-          noBalls: event.isNoBall ? bowlInnings.noBalls + 1 : bowlInnings.noBalls,
-          dotBalls: totalRunsOnBall == 0 && !event.isWicket ? bowlInnings.dotBalls + 1 : bowlInnings.dotBalls,
-          maidens: newMaidens,
-        ));
+          await _repo.updateBowlerInnings(bowlInnings.copyWith(
+            runsConceded: bowlInnings.runsConceded + bowlerRuns,
+            wickets: event.isWicket ? bowlInnings.wickets + 1 : bowlInnings.wickets,
+            ballsBowled: isLegal ? bowlInnings.ballsBowled + 1 : bowlInnings.ballsBowled,
+            wides: event.isWide ? bowlInnings.wides + 1 : bowlInnings.wides,
+            noBalls: event.isNoBall ? bowlInnings.noBalls + 1 : bowlInnings.noBalls,
+            dotBalls: totalRunsOnBall == 0 && !event.isWicket ? bowlInnings.dotBalls + 1 : bowlInnings.dotBalls,
+            maidens: newMaidens,
+          ));
+        }
       }
 
       // Determine striker swap: odd runs swap, over complete swaps
@@ -429,8 +438,14 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
     try {
       final prev = currentState.previousState;
       final innings = prev.innings;
-      final nextBatPos = prev.batsmanStats.length + 1;
-      await _repo.createBatsmanInnings(inningsId: innings.id, playerId: event.playerId, battingPosition: nextBatPos);
+      final existingBi = await _repo.getBatsmanInnings(innings.id, event.playerId);
+      if (existingBi != null) {
+        // Reactivate retired batsman
+        await _repo.updateBatsmanInnings(existingBi.toActive());
+      } else {
+        final nextBatPos = prev.batsmanStats.length + 1;
+        await _repo.createBatsmanInnings(inningsId: innings.id, playerId: event.playerId, battingPosition: nextBatPos);
+      }
       // Mark dismissed batsman
       final dismissedBi = await _repo.getBatsmanInnings(innings.id, currentState.dismissedPlayerId);
       if (dismissedBi != null) {
@@ -624,9 +639,10 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
         }
       }
 
+      final isWicketDecrement = lastBall.isWicket && lastBall.dismissalType != DismissalType.retired;
       updatedInnings = updatedInnings.copyWith(
         totalRuns: updatedInnings.totalRuns - totalRunsOnBall,
-        totalWickets: lastBall.isWicket ? updatedInnings.totalWickets - 1 : updatedInnings.totalWickets,
+        totalWickets: isWicketDecrement ? updatedInnings.totalWickets - 1 : updatedInnings.totalWickets,
         totalOversCompleted: newOvers,
         totalBallsInCurrentOver: newBalls,
         totalExtras: updatedInnings.totalExtras - extraRuns,
@@ -648,39 +664,43 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
 
       await _repo.updateInnings(updatedInnings);
 
-      final batInnings = await _repo.getBatsmanInnings(updatedInnings.id, lastBall.batsmanId);
-      if (batInnings != null && !lastBall.isWide) {
-        await _repo.updateBatsmanInnings(batInnings.copyWith(
-          runs: batInnings.runs - batsmanRuns,
-          ballsFaced: batInnings.ballsFaced - (isLegal ? 1 : (lastBall.isNoBall ? 1 : 0)),
-          fours: batsmanRuns == 4 ? batInnings.fours - 1 : batInnings.fours,
-          sixes: batsmanRuns == 6 ? batInnings.sixes - 1 : batInnings.sixes,
-        ));
+      if (lastBall.dismissalType != DismissalType.retired) {
+        final batInnings = await _repo.getBatsmanInnings(updatedInnings.id, lastBall.batsmanId);
+        if (batInnings != null && !lastBall.isWide) {
+          await _repo.updateBatsmanInnings(batInnings.copyWith(
+            runs: batInnings.runs - batsmanRuns,
+            ballsFaced: batInnings.ballsFaced - (isLegal ? 1 : (lastBall.isNoBall ? 1 : 0)),
+            fours: batsmanRuns == 4 ? batInnings.fours - 1 : batInnings.fours,
+            sixes: batsmanRuns == 6 ? batInnings.sixes - 1 : batInnings.sixes,
+          ));
+        }
       }
 
-      final bowlInnings = await _repo.getBowlerInnings(updatedInnings.id, lastBall.bowlerId);
-      if (bowlInnings != null) {
-        final bowlerRuns = lastBall.isBye || lastBall.isLegBye ? 0 : totalRunsOnBall;
-        
-        int maidensToRevert = 0;
-        if (isLegal && currentState.innings.totalBallsInCurrentOver == 0 && currentState.innings.totalOversCompleted > 0) {
-          final overDeliveries = await _repo.getDeliveriesForOver(currentState.innings.id, currentState.innings.totalOversCompleted - 1);
-          int bowlerRunsInOver = 0;
-          for (var d in overDeliveries) {
-            if (!d.isBye && !d.isLegBye) bowlerRunsInOver += d.totalRuns;
+      if (lastBall.dismissalType != DismissalType.retired) {
+        final bowlInnings = await _repo.getBowlerInnings(updatedInnings.id, lastBall.bowlerId);
+        if (bowlInnings != null) {
+          final bowlerRuns = lastBall.isBye || lastBall.isLegBye ? 0 : totalRunsOnBall;
+          
+          int maidensToRevert = 0;
+          if (isLegal && currentState.innings.totalBallsInCurrentOver == 0 && currentState.innings.totalOversCompleted > 0) {
+            final overDeliveries = await _repo.getDeliveriesForOver(currentState.innings.id, currentState.innings.totalOversCompleted - 1);
+            int bowlerRunsInOver = 0;
+            for (var d in overDeliveries) {
+              if (!d.isBye && !d.isLegBye) bowlerRunsInOver += d.totalRuns;
+            }
+            if (bowlerRunsInOver == 0) maidensToRevert = 1;
           }
-          if (bowlerRunsInOver == 0) maidensToRevert = 1;
-        }
 
-        await _repo.updateBowlerInnings(bowlInnings.copyWith(
-          runsConceded: bowlInnings.runsConceded - bowlerRuns,
-          wickets: lastBall.isWicket ? bowlInnings.wickets - 1 : bowlInnings.wickets,
-          ballsBowled: isLegal ? bowlInnings.ballsBowled - 1 : bowlInnings.ballsBowled,
-          wides: lastBall.isWide ? bowlInnings.wides - 1 : bowlInnings.wides,
-          noBalls: lastBall.isNoBall ? bowlInnings.noBalls - 1 : bowlInnings.noBalls,
-          dotBalls: totalRunsOnBall == 0 && !lastBall.isWicket ? bowlInnings.dotBalls - 1 : bowlInnings.dotBalls,
-          maidens: bowlInnings.maidens - maidensToRevert,
-        ));
+          await _repo.updateBowlerInnings(bowlInnings.copyWith(
+            runsConceded: bowlInnings.runsConceded - bowlerRuns,
+            wickets: isWicketDecrement ? bowlInnings.wickets - 1 : bowlInnings.wickets,
+            ballsBowled: isLegal ? bowlInnings.ballsBowled - 1 : bowlInnings.ballsBowled,
+            wides: lastBall.isWide ? bowlInnings.wides - 1 : bowlInnings.wides,
+            noBalls: lastBall.isNoBall ? bowlInnings.noBalls - 1 : bowlInnings.noBalls,
+            dotBalls: totalRunsOnBall == 0 && !lastBall.isWicket ? bowlInnings.dotBalls - 1 : bowlInnings.dotBalls,
+            maidens: bowlInnings.maidens - maidensToRevert,
+          ));
+        }
       }
 
       if (lastBall.isWicket && lastBall.dismissedPlayerId != null) {
@@ -824,6 +844,9 @@ class ScoringBloc extends Bloc<ScoringEvent, ScoringState> {
   }
 
   String _generateCommentary(PlayerModel bowler, PlayerModel batsman, DeliveryModel ball) {
+    if (ball.dismissalType == DismissalType.retired) {
+      return '${batsman.displayName} retired.';
+    }
     final bName = bowler.displayName;
     final batName = batsman.displayName;
     final prefix = '$bName to $batName, ';

@@ -37,16 +37,50 @@ class _HomePageState extends State<HomePage> {
     setState(() => _loading = true);
     final repo = getIt<MatchRepository>();
     final syncService = getIt<SyncService>();
-    final localMatches = await repo.getAllMatches();
-    final liveMatches = await syncService.getAllLiveMatches();
-    setState(() { 
-      _localMatches = localMatches;
-      _liveMatches = liveMatches;
-      _loading = false; 
-    });
+
+    // Run local and remote fetches in parallel so a failure in one
+    // (e.g. slow SQLite WASM init on web) doesn't block the other.
+    List<MatchModel> localMatches = [];
+    List<MatchModel> liveMatches = [];
+
+    await Future.wait([
+      (() async {
+        try {
+          localMatches = await repo.getAllMatches();
+        } catch (e) {
+          print('Error loading local matches: $e');
+        }
+      })(),
+      (() async {
+        try {
+          liveMatches = await syncService.getAllLiveMatches();
+        } catch (e) {
+          print('Error loading global matches: $e');
+        }
+      })(),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _localMatches = localMatches;
+        _liveMatches = liveMatches;
+        _loading = false;
+      });
+    }
   }
 
   List<MatchModel> get _matchesToDisplay => _isLiveTab ? _liveMatches : _localMatches;
+
+  void _openMatch(MatchModel match, {String? tab}) {
+    final isLocal = _localMatches.any((m) => m.id == match.id);
+    if (isLocal) {
+      final query = tab != null ? '?tab=$tab' : '';
+      context.push('/match/${match.id}$query');
+    } else {
+      final query = tab != null ? '?tab=$tab' : '';
+      context.push('/live/${match.id}$query');
+    }
+  }
 
   Future<void> _confirmDelete(BuildContext context, MatchModel match) async {
     final confirmed = await showDialog<bool>(
@@ -189,15 +223,9 @@ class _HomePageState extends State<HomePage> {
                             padding: const EdgeInsets.only(right: 12),
                             child: MatchCard(
                               match: _matchesToDisplay[i],
-                              onTap: () {
-                                // If match exists locally, always go to manage/score page
-                                final isLocal = _localMatches.any((m) => m.id == _matchesToDisplay[i].id);
-                                if (isLocal) {
-                                  context.push('/match/${_matchesToDisplay[i].id}');
-                                } else {
-                                  context.push('/live/${_matchesToDisplay[i].id}');
-                                }
-                              },
+                              onTap: () => _openMatch(_matchesToDisplay[i]),
+                              onInsightsTap: () => _openMatch(_matchesToDisplay[i], tab: 'insights'),
+                              onSquadsTap: () => _openMatch(_matchesToDisplay[i], tab: 'squads'),
                               onDelete: _isLiveTab ? null : () => _confirmDelete(context, _matchesToDisplay[i]),
                             ),
                           ),

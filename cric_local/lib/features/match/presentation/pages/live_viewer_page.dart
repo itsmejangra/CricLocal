@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:collection/collection.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../app/di.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/constants.dart';
@@ -10,17 +11,22 @@ import 'package:cric_local/core/services/sync_service.dart';
 import 'package:cric_local/core/enums.dart';
 import '../widgets/scorecard_tab.dart';
 import '../widgets/commentary_tab.dart';
+import '../widgets/insights_tab.dart';
+import '../widgets/mvp_tab.dart';
+import '../widgets/match_result_tab.dart';
 import '../bloc/scoring_event_state.dart';
 import '../../data/models/match_model.dart';
 import '../../data/models/innings_model.dart';
 import '../../data/models/player_model.dart';
 import '../bloc/scoring_bloc.dart';
-import '../bloc/scoring_event_state.dart';
 import '../../../streaming/presentation/pages/watch_live_page.dart';
+import '../../../streaming/presentation/pages/go_live_page.dart';
+import 'package:cric_local/features/match/data/repositories/match_repository.dart';
 
 class LiveViewerPage extends StatefulWidget {
   final String? initialMatchId;
-  const LiveViewerPage({super.key, this.initialMatchId});
+  final int initialTabIndex;
+  const LiveViewerPage({super.key, this.initialMatchId, this.initialTabIndex = 0});
 
   @override
   State<LiveViewerPage> createState() => _LiveViewerPageState();
@@ -33,12 +39,17 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
   LiveMatchData? _data;
   Timer? _timer;
   bool _isLoading = false;
+  bool _isScorer = false;
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 6,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, 5),
+    )..addListener(() => setState(() {}));
     if (widget.initialMatchId != null) {
       _idController.text = widget.initialMatchId!;
       _startSync();
@@ -59,11 +70,30 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
     _timer = Timer.periodic(const Duration(seconds: 10), (timer) => _fetchData());
   }
 
+  Future<void> _checkIsScorer() async {
+    final id = _idController.text.trim();
+    if (id.isEmpty) return;
+    try {
+      final localMatch = await getIt<MatchRepository>().getMatch(id);
+      if (mounted) {
+        setState(() {
+          _isScorer = localMatch != null;
+        });
+      }
+    } catch (e) {
+      print('Check isScorer error: $e');
+    }
+  }
+
   Future<void> _fetchData() async {
     final id = _idController.text.trim();
     if (id.isEmpty) return;
 
-    if (_data == null) setState(() => _isLoading = true);
+    final isFirstLoad = _data == null;
+    if (isFirstLoad) {
+      setState(() => _isLoading = true);
+      await _checkIsScorer();
+    }
     
     final result = await _sync.getLiveMatchData(id);
     if (mounted) {
@@ -71,21 +101,45 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
         _data = result;
         _isLoading = false;
       });
+      if (result == null && isFirstLoad) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Match not found. Make sure the Match ID is correct and the scorer is online.')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Live Viewer'),
-        bottom: _data == null ? null : TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: const [Tab(text: 'Summary'), Tab(text: 'Score Card'), Tab(text: 'Comms')],
-        ),
+        backgroundColor: AppTheme.wicketRed,
+        foregroundColor: Colors.white,
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        title: const Text('Individual match'),
+        actions: [
+          if (_data != null &&
+              !_isScorer &&
+              (_data!.match.status == MatchStatus.live || _data!.match.status == MatchStatus.upcoming))
+            IconButton(
+              icon: const Icon(Icons.videocam, color: Colors.white),
+              tooltip: 'Go Live as Broadcaster',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GoLivePage(
+                      matchId: _data!.match.id,
+                      matchTitle: _data!.match.title,
+                    ),
+                  ),
+                );
+              },
+            ),
+          IconButton(icon: const Icon(Icons.share_outlined), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
+        ],
       ),
       body: _data == null ? _buildInput() : _buildContent(),
     );
@@ -146,6 +200,73 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
     );
   }
 
+  ScoringState _buildScoringState() {
+    final m = _data!.match;
+    final allScorecards = _data!.innings.map((inn) => ScorecardData(
+      innings: inn,
+      batsmanStats: _data!.batsmanStats.where((b) => b.inningsId == inn.id).toList(),
+      bowlerStats: _data!.bowlerStats.where((b) => b.inningsId == inn.id).toList(),
+      deliveries: _data!.recentDeliveries.where((d) => d.inningsId == inn.id).toList(),
+    )).toList();
+
+    if (m.status == MatchStatus.completed) {
+      return MatchCompleted(
+        match: m,
+        allScorecards: allScorecards,
+        allPlayers: _data!.allPlayers,
+        resultText: m.resultSummary ?? '',
+        winnerTeam: m.winnerTeam,
+      );
+    }
+
+    return ScoringActive(
+      match: m,
+      innings: _data!.innings.last,
+      striker: PlayerModel(id: 'striker', name: 'Striker', teamName: 'Live', matchId: m.id),
+      nonStriker: PlayerModel(id: 'non_striker', name: 'Non-Striker', teamName: 'Live', matchId: m.id),
+      bowler: PlayerModel(id: 'bowler', name: 'Bowler', teamName: 'Live', matchId: m.id),
+      recentBalls: _data!.recentDeliveries,
+      allPlayers: _data!.allPlayers,
+      batsmanStats: _data!.batsmanStats.where((b) => b.inningsId == _data!.innings.last.id).toList(),
+      bowlerStats: _data!.bowlerStats.where((b) => b.inningsId == _data!.innings.last.id).toList(),
+      currentOverBalls: 0,
+      allScorecards: allScorecards,
+    );
+  }
+
+  Widget _buildSquadsTab() {
+    final m = _data!.match;
+    final players = _data!.allPlayers;
+    final team1Players = players.where((p) => p.teamName == m.team1Name).toList();
+    final team2Players = players.where((p) => p.teamName == m.team2Name).toList();
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(m.team1Name, style: AppTheme.titleMedium.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        ...team1Players.map((p) => ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(p.name),
+            )),
+        const SizedBox(height: 24),
+        Text(m.team2Name, style: AppTheme.titleMedium.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        ...team2Players.map((p) => ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(p.name),
+            )),
+        if (players.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 32),
+            child: Center(child: Text('No squad data available yet.', style: TextStyle(color: AppTheme.textSecondary))),
+          ),
+      ],
+    );
+  }
+
   Widget _buildContent() {
     final m = _data!.match;
     if (_data!.innings.isEmpty) {
@@ -162,7 +283,11 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
               Text('${m.team1Name} vs ${m.team2Name}', style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary)),
               const SizedBox(height: 24),
               Text(
-                m.status == MatchStatus.completed ? 'Match is completed but no data was synced.' : 'Match has not started yet. Waiting for scorer to start...',
+                m.status == MatchStatus.completed
+                    ? 'Match is completed but no data was synced.'
+                    : m.status == MatchStatus.abandoned
+                        ? 'Match has been abandoned.'
+                        : 'Match has not started yet. Waiting for scorer to start...',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 16),
               ),
@@ -172,31 +297,62 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
       );
     }
 
-    final state = ScoringActive(
-      match: m,
-      innings: _data!.innings.last,
-      striker: PlayerModel(id: 'striker', name: 'Striker', teamName: 'Live', matchId: m.id), 
-      nonStriker: PlayerModel(id: 'non_striker', name: 'Non-Striker', teamName: 'Live', matchId: m.id),
-      bowler: PlayerModel(id: 'bowler', name: 'Bowler', teamName: 'Live', matchId: m.id),
-      recentBalls: _data!.recentDeliveries,
-      allPlayers: _data!.allPlayers,
-      batsmanStats: _data!.batsmanStats.where((b) => b.inningsId == _data!.innings.last.id).toList(),
-      bowlerStats: _data!.bowlerStats.where((b) => b.inningsId == _data!.innings.last.id).toList(),
-      currentOverBalls: 0,
-      allScorecards: _data!.innings.map((inn) => ScorecardData(
-        innings: inn,
-        batsmanStats: _data!.batsmanStats.where((b) => b.inningsId == inn.id).toList(),
-        bowlerStats: _data!.bowlerStats.where((b) => b.inningsId == inn.id).toList(),
-        deliveries: _data!.recentDeliveries.where((d) => d.inningsId == inn.id).toList(),
-      )).toList(),
-    );
+    final state = _buildScoringState();
 
-    return TabBarView(
-      controller: _tabController,
+    return Column(
       children: [
-        _buildSummaryTab(),
-        ScorecardTab(state: state),
-        CommentaryTab(state: state, matchId: m.id),
+        Material(
+          color: Colors.white,
+          child: TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: AppTheme.textPrimary,
+            unselectedLabelColor: AppTheme.textHint,
+            indicatorColor: AppTheme.wicketRed,
+            indicatorWeight: 3,
+            dividerColor: AppTheme.cardBorder,
+            tabs: [
+              const Tab(text: 'Summary'),
+              const Tab(text: 'Scorecard'),
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Insights'),
+                    if (_tabController.index == 2) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.wicketRed,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Tab(text: 'Comms'),
+              const Tab(text: 'Squads'),
+              const Tab(text: 'MVP'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              state is MatchCompleted ? MatchResultTab(state: state) : _buildSummaryTab(),
+              ScorecardTab(state: state),
+              InsightsTab(state: state),
+              CommentaryTab(state: state, matchId: m.id),
+              _buildSquadsTab(),
+              MvpTab(state: state),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -432,7 +588,7 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
             }),
           ],
 
-          if (m.status == MatchStatus.live) ...[
+          if (m.status == MatchStatus.live || (m.youtubeVideoId != null && m.youtubeVideoId!.isNotEmpty)) ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -452,6 +608,7 @@ class _LiveViewerPageState extends State<LiveViewerPage> with SingleTickerProvid
                       builder: (_) => WatchLivePage(
                         matchId: _idController.text.trim(),
                         matchTitle: m.title,
+                        youtubeVideoId: m.youtubeVideoId,
                       ),
                     ),
                   );

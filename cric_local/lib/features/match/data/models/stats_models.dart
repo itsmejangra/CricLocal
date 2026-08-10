@@ -74,6 +74,23 @@ class BatsmanInningsModel extends Equatable {
     startTime: startTime, endTime: endTime ?? this.endTime,
   );
 
+  BatsmanInningsModel toActive() => BatsmanInningsModel(
+    id: id,
+    inningsId: inningsId,
+    playerId: playerId,
+    runs: runs,
+    ballsFaced: ballsFaced,
+    fours: fours,
+    sixes: sixes,
+    isOut: false,
+    dismissalType: null,
+    dismissalDescription: null,
+    battingPosition: battingPosition,
+    minutesBatted: minutesBatted,
+    startTime: startTime,
+    endTime: null,
+  );
+
   @override
   List<Object?> get props => [id, inningsId, playerId];
 }
